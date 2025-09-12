@@ -142,6 +142,16 @@ const LampIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height
 const TextureIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M7 7h.01"/><path d="M17 7h.01"/><path d="M7 17h.01"/><path d="M17 17h.01"/><path d="M12 12h.01"/></svg>;
 const PlantIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M12 9a3 3 0 0 1 3-3 3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V9Z"/><path d="M12 22v-4"/></svg>;
 const BalconyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><path d="M6 14V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8"/><path d="M2 18h20"/></svg>;
+const WavesIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>;
+const ForestIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 10v.2A3 3 0 0 1 8.9 16v0H5v0a3 3 0 0 1-1.1-5.8v0L3 10v0a3 3 0 0 1 3-3v0a3 3 0 0 1 3 3v0a3 3 0 0 1 1 0Z"/><path d="M7 21v-3"/><path d="M15 10v.2A3 3 0 0 0 16.1 16v0H20v0a3 3 0 0 0 1.1-5.8v0L21 10v0a3 3 0 0 0-3-3v0a3 3 0 0 0-3 3v0a3 3 0 0 0-1 0Z"/><path d="M17 21v-3"/></svg>;
+const DesertIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21s-4-3-4-9 4-9 4-9"/><path d="M16 3s4 3 4 9-4 9-4 9"/><path d="M15 9h-6l-3 9h12l-3-9Z"/></svg>;
+const SnowflakeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="2" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></svg>;
+const RainIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 19 2-3 2 3"/><path d="m16 19 2-3 2 3"/></svg>;
+const CanyonIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20h18L12 4 3 20z"/><path d="M12 4v16"/><path d="M8 12h8"/></svg>;
+const VolcanoIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 20h20l-4-8-4 2-4-2-4 8z"/><path d="M12 4l-2 4h4l-2-4z"/><circle cx="12" cy="2" r="1"/><circle cx="10" cy="3" r="0.5"/><circle cx="14" cy="3" r="0.5"/></svg>;
+const ValleyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4L12 12 4 4"/><path d="M12 12v8"/><path d="M8 16l4 4 4-4"/></svg>;
+const LighthouseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L8 6v14h8V6l-4-4z"/><path d="M8 10h8"/><path d="M8 14h8"/><path d="M6 20h12"/><path d="M12 2l8 4"/></svg>;
+const IslandIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="17" rx="10" ry="4"/><path d="M8 12c0-3 2-5 4-5s4 2 4 5"/><path d="M12 7V3"/><path d="M10 5l4-2"/><path d="M14 5l-4-2"/></svg>;
 
 // Before/After Slider Component
 interface BeforeAfterSliderProps {
@@ -362,6 +372,16 @@ const assistantCategoryIcons: { [key: string]: () => React.JSX.Element } = {
     'Biophilic Design': PlantIcon,
     'Outdoor Spaces': BalconyIcon,
     'Ceiling Features': LayersIcon,
+    'Ocean Waves': WavesIcon,
+    'Forest Depths': ForestIcon,
+    'Desert Landscapes': DesertIcon,
+    'Winter Scenes': SnowflakeIcon,
+    'Storm Weather': RainIcon,
+    'Canyon Views': CanyonIcon,
+    'Volcanic Terrain': VolcanoIcon,
+    'Valley Vistas': ValleyIcon,
+    'Coastal Beacons': LighthouseIcon,
+    'Tropical Islands': IslandIcon,
 };
 
 const suggestionCategoryToClassName: { [key: string]: string } = {
@@ -434,6 +454,16 @@ const suggestionCategoryToClassName: { [key: string]: string } = {
     'Biophilic Design': 'architecture',
     'Outdoor Spaces': 'architecture',
     'Ceiling Features': 'architecture',
+    'Ocean Waves': 'landscapes',
+    'Forest Depths': 'landscapes',
+    'Desert Landscapes': 'landscapes',
+    'Winter Scenes': 'landscapes',
+    'Storm Weather': 'landscapes',
+    'Canyon Views': 'landscapes',
+    'Volcanic Terrain': 'landscapes',
+    'Valley Vistas': 'landscapes',
+    'Coastal Beacons': 'landscapes',
+    'Tropical Islands': 'landscapes',
 };
 
 // Helper function to extract base64 data from data URL
@@ -463,6 +493,58 @@ const App: React.FC = () => {
   const [imageBeforePreview, setImageBeforePreview] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState<string | null>(null);
   const [activeSuggestionCategory, setActiveSuggestionCategory] = useState<string>('');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [showPinModal, setShowPinModal] = useState<boolean>(false);
+  const [pinInput, setPinInput] = useState<string>('');
+  const [pinError, setPinError] = useState<string>('');
+
+  // PIN validation
+  const validatePin = (inputPin: string): boolean => {
+    // For simplicity, directly compare the PIN
+    // In production, use proper authentication with hashed passwords
+    return inputPin === '1256';
+  };
+
+  const handlePinSubmit = () => {
+    if (validatePin(pinInput)) {
+      setIsAuthenticated(true);
+      setShowPinModal(false);
+      setPinInput('');
+      setPinError('');
+      // Session expires after 1 hour for security
+      setTimeout(() => {
+        setIsAuthenticated(false);
+      }, 3600000);
+    } else {
+      setPinError('Invalid PIN code');
+      setPinInput('');
+      // Clear error after 3 seconds
+      setTimeout(() => setPinError(''), 3000);
+    }
+  };
+
+  const handleUploadClick = () => {
+    console.log('Upload button clicked, isAuthenticated:', isAuthenticated);
+    console.log('showPinModal before:', showPinModal);
+    if (!isAuthenticated) {
+      setShowPinModal(true);
+      console.log('Setting showPinModal to true');
+    } else {
+      document.getElementById('image-upload')?.click();
+    }
+  };
+
+  const handlePinInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 4); // Only digits, max 4
+    setPinInput(value);
+    setPinError('');
+  };
+
+  const handlePinKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && pinInput.length === 4) {
+      handlePinSubmit();
+    }
+  };
 
 
   const [image, setImage] = useState<string | null>(null);
@@ -1169,6 +1251,57 @@ const handleResetToOriginal = useCallback(() => {
     "Ceiling Features"
   );
 
+  // Landscapes & Scenery AI Assistants
+  const handleOceanWaves = createSuggestionHandler(
+    "You are an AI Ocean Photography Expert specializing in seascapes and wave dynamics. Analyze the ocean scene and suggest improvements for wave motion, water clarity, foam patterns, and coastal elements. Consider tidal effects, wave energy, and marine atmosphere. Provide specific recommendations for creating dramatic and captivating ocean imagery.",
+    "Ocean Waves"
+  );
+
+  const handleForestDepths = createSuggestionHandler(
+    "You are an AI Forest Specialist focusing on woodland scenes and natural depth. Analyze the forest landscape and suggest improvements for tree density, light filtering, undergrowth details, and atmospheric perspective. Consider seasonal changes, wildlife integration, and forest floor elements. Provide specific recommendations for creating immersive forest environments.",
+    "Forest Depths"
+  );
+
+  const handleDesertLandscapes = createSuggestionHandler(
+    "You are an AI Desert Environment Expert specializing in arid landscapes and geological formations. Analyze the desert scene and suggest improvements for sand textures, rock formations, heat shimmer effects, and desert vegetation. Consider lighting conditions, erosion patterns, and desert wildlife. Provide specific recommendations for creating authentic desert atmospheres.",
+    "Desert Landscapes"
+  );
+
+  const handleWinterScenes = createSuggestionHandler(
+    "You are an AI Winter Photography Specialist focusing on snow-covered landscapes and cold weather effects. Analyze the winter scene and suggest improvements for snow texture, ice formations, frost patterns, and winter lighting. Consider seasonal atmosphere, winter wildlife, and cold weather phenomena. Provide specific recommendations for creating magical winter imagery.",
+    "Winter Scenes"
+  );
+
+  const handleStormWeather = createSuggestionHandler(
+    "You are an AI Weather Dynamics Expert specializing in dramatic storm conditions and atmospheric effects. Analyze the weather scene and suggest improvements for cloud formations, lightning effects, rain patterns, and storm intensity. Consider wind effects, atmospheric pressure, and storm lighting. Provide specific recommendations for creating powerful weather imagery.",
+    "Storm Weather"
+  );
+
+  const handleCanyonViews = createSuggestionHandler(
+    "You are an AI Canyon Geology Specialist focusing on rock formations and geological landscapes. Analyze the canyon scene and suggest improvements for rock stratification, erosion patterns, depth perspective, and geological colors. Consider sedimentary layers, canyon lighting, and geological time scales. Provide specific recommendations for creating dramatic canyon vistas.",
+    "Canyon Views"
+  );
+
+  const handleVolcanicTerrain = createSuggestionHandler(
+    "You are an AI Volcanic Landscape Expert specializing in igneous formations and geothermal features. Analyze the volcanic scene and suggest improvements for lava flows, volcanic rock textures, geothermal activity, and volcanic atmosphere. Consider magma effects, volcanic gases, and geological processes. Provide specific recommendations for creating dynamic volcanic landscapes.",
+    "Volcanic Terrain"
+  );
+
+  const handleValleyVistas = createSuggestionHandler(
+    "You are an AI Valley Geography Specialist focusing on lowland landscapes and river systems. Analyze the valley scene and suggest improvements for terrain contours, water features, vegetation patterns, and atmospheric perspective. Consider river meandering, valley formation, and ecosystem diversity. Provide specific recommendations for creating serene valley panoramas.",
+    "Valley Vistas"
+  );
+
+  const handleCoastalBeacons = createSuggestionHandler(
+    "You are an AI Coastal Architecture Expert specializing in lighthouse structures and maritime landscapes. Analyze the coastal scene and suggest improvements for lighthouse design, beacon lighting, coastal erosion, and maritime atmosphere. Consider navigation elements, coastal weather, and maritime history. Provide specific recommendations for creating iconic coastal imagery.",
+    "Coastal Beacons"
+  );
+
+  const handleTropicalIslands = createSuggestionHandler(
+    "You are an AI Tropical Environment Specialist focusing on island ecosystems and paradise landscapes. Analyze the tropical scene and suggest improvements for palm vegetation, coral reefs, turquoise waters, and tropical atmosphere. Consider island formation, tropical weather, and marine biodiversity. Provide specific recommendations for creating idyllic tropical paradise imagery.",
+    "Tropical Islands"
+  );
+
   const handleGetVisionEnhancementIdeas = createSuggestionHandler(
     "You are an AI Vision Enhancement Expert. Analyze the user's image with advanced computer vision and suggest three ways to improve visual clarity, detail, or perception. Focus on enhancing what the human eye can see - sharpening details, improving contrast, or revealing hidden elements. Each suggestion should be an actionable prompt.",
     "Vision Enhancement"
@@ -1228,6 +1361,61 @@ const handleResetToOriginal = useCallback(() => {
   if (view === 'upload') {
     return (
       <div className="upload-view">
+        {/* PIN Entry Modal */}
+        {showPinModal && (
+          <div className="pin-modal-overlay" onClick={(e) => console.log('Modal overlay clicked', e)}>
+            <div className="pin-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="pin-modal-header">
+                <h3>Enter PIN Code</h3>
+                <button 
+                  className="pin-modal-close" 
+                  onClick={() => {
+                    setShowPinModal(false);
+                    setPinInput('');
+                    setPinError('');
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="pin-modal-body">
+                <p>Please enter the 4-digit PIN code to access image upload:</p>
+                <div className="pin-input-container">
+                  <input
+                    type="password"
+                    value={pinInput}
+                    onChange={handlePinInputChange}
+                    onKeyPress={handlePinKeyPress}
+                    placeholder="••••"
+                    className={`pin-input ${pinError ? 'error' : ''}`}
+                    maxLength={4}
+                    autoFocus
+                  />
+                </div>
+                {pinError && <div className="pin-error">{pinError}</div>}
+                <div className="pin-modal-actions">
+                  <button 
+                    onClick={handlePinSubmit}
+                    disabled={pinInput.length !== 4}
+                    className="btn btn-primary"
+                  >
+                    Submit
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowPinModal(false);
+                      setPinInput('');
+                      setPinError('');
+                    }}
+                    className="btn btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         <div
           className={`hero-section ${isDragOver ? 'drag-over' : ''}`}
           onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
@@ -1237,10 +1425,10 @@ const handleResetToOriginal = useCallback(() => {
           <h1 className="hero-title">Imagina</h1>
           <p className="hero-tagline">Your AI-powered creative partner for stunning image edits. Upload a photo to begin.</p>
           <div className="hero-cta">
-            <input type="file" id="file-upload" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
-            <label htmlFor="file-upload" className="btn btn-primary">
+            <input type="file" id="image-upload" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+            <button onClick={handleUploadClick} className="btn btn-primary">
               Upload Image
-            </label>
+            </button>
           </div>
           <p className="hero-drop-text">or drop a file anywhere</p>
         </div>
@@ -1250,6 +1438,62 @@ const handleResetToOriginal = useCallback(() => {
 
   return (
     <div className="editor-view">
+      {/* PIN Entry Modal */}
+      {showPinModal && (
+        <div className="pin-modal-overlay" onClick={(e) => console.log('Modal overlay clicked', e)}>
+          <div className="pin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pin-modal-header">
+              <h3>Enter PIN Code</h3>
+              <button 
+                className="pin-modal-close" 
+                onClick={() => {
+                  setShowPinModal(false);
+                  setPinInput('');
+                  setPinError('');
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="pin-modal-body">
+              <p>Please enter the 4-digit PIN code to access image upload:</p>
+              <div className="pin-input-container">
+                <input
+                  type="password"
+                  value={pinInput}
+                  onChange={handlePinInputChange}
+                  onKeyPress={handlePinKeyPress}
+                  placeholder="••••"
+                  className={`pin-input ${pinError ? 'error' : ''}`}
+                  maxLength={4}
+                  autoFocus
+                />
+              </div>
+              {pinError && <div className="pin-error">{pinError}</div>}
+              <div className="pin-modal-actions">
+                <button 
+                  onClick={handlePinSubmit}
+                  disabled={pinInput.length !== 4}
+                  className="btn btn-primary"
+                >
+                  Submit
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowPinModal(false);
+                    setPinInput('');
+                    setPinError('');
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {isMasking && image && (
         <MaskEditor
           imageSrc={image}
@@ -1722,37 +1966,88 @@ const handleResetToOriginal = useCallback(() => {
                                     <span className="assistant-btn-desc">Change the atmosphere.</span>
                                 </div>
                             </button>
-                        </div>
-                    </div>
-                    <div className="assistant-category">
-                        <h3>Creative &amp; Artistic</h3>
-                        <div className="suggestion-buttons">
-                            <button className="btn btn-secondary assistant-btn creative" onClick={handleGetCreativeIdeas} disabled={isFetchingSuggestions}>
-                                <div className="assistant-btn-icon-container"><LightbulbIcon /></div>
+                            <button className="btn btn-secondary assistant-btn landscapes" onClick={handleGetSeasonWeatherIdeas} disabled={isFetchingSuggestions}>
+                                <div className="assistant-btn-icon-container"><WindIcon /></div>
                                 <div className="assistant-btn-text-container">
-                                    <span className="assistant-btn-title">Creative Concepts</span>
-                                    <span className="assistant-btn-desc">Get transformative ideas.</span>
+                                    <span className="assistant-btn-title">Sky Enhancement</span>
+                                    <span className="assistant-btn-desc">Dramatic sky and cloud effects.</span>
                                 </div>
                             </button>
-                            <button className="btn btn-secondary assistant-btn creative" onClick={handleGetStoryIdeas} disabled={isFetchingSuggestions}>
-                                <div className="assistant-btn-icon-container"><BookOpenIcon /></div>
+                            <button className="btn btn-secondary assistant-btn landscapes" onClick={handleGetBackgroundIdeas} disabled={isFetchingSuggestions}>
+                                <div className="assistant-btn-icon-container"><MountainIcon /></div>
                                 <div className="assistant-btn-text-container">
-                                    <span className="assistant-btn-title">Storyteller</span>
-                                    <span className="assistant-btn-desc">Create a narrative.</span>
+                                    <span className="assistant-btn-title">Water Features</span>
+                                    <span className="assistant-btn-desc">Rivers, lakes, and ocean scenes.</span>
                                 </div>
                             </button>
-                            <button className="btn btn-secondary assistant-btn creative" onClick={handleGetVFXIdeas} disabled={isFetchingSuggestions}>
-                                <div className="assistant-btn-icon-container"><SparklesIcon /></div>
+                            <button className="btn btn-secondary assistant-btn landscapes" onClick={handleOceanWaves} disabled={isFetchingSuggestions}>
+                                <div className="assistant-btn-icon-container"><WavesIcon /></div>
                                 <div className="assistant-btn-text-container">
-                                    <span className="assistant-btn-title">VFX Supervisor</span>
-                                    <span className="assistant-btn-desc">Add special effects.</span>
+                                    <span className="assistant-btn-title">Ocean Waves</span>
+                                    <span className="assistant-btn-desc">Seascapes and wave dynamics.</span>
                                 </div>
                             </button>
-                            <button className="btn btn-secondary assistant-btn creative" onClick={handleGetPropIdeas} disabled={isFetchingSuggestions}>
-                                <div className="assistant-btn-icon-container"><BoxIcon /></div>
+                            <button className="btn btn-secondary assistant-btn landscapes" onClick={handleForestDepths} disabled={isFetchingSuggestions}>
+                                <div className="assistant-btn-icon-container"><ForestIcon /></div>
                                 <div className="assistant-btn-text-container">
-                                    <span className="assistant-btn-title">Prop Master</span>
-                                    <span className="assistant-btn-desc">Add objects to the scene.</span>
+                                    <span className="assistant-btn-title">Forest Depths</span>
+                                    <span className="assistant-btn-desc">Woodland scenes and natural depth.</span>
+                                </div>
+                            </button>
+                            <button className="btn btn-secondary assistant-btn landscapes" onClick={handleDesertLandscapes} disabled={isFetchingSuggestions}>
+                                <div className="assistant-btn-icon-container"><DesertIcon /></div>
+                                <div className="assistant-btn-text-container">
+                                    <span className="assistant-btn-title">Desert Landscapes</span>
+                                    <span className="assistant-btn-desc">Arid environments and formations.</span>
+                                </div>
+                            </button>
+                            <button className="btn btn-secondary assistant-btn landscapes" onClick={handleWinterScenes} disabled={isFetchingSuggestions}>
+                                <div className="assistant-btn-icon-container"><SnowflakeIcon /></div>
+                                <div className="assistant-btn-text-container">
+                                    <span className="assistant-btn-title">Winter Scenes</span>
+                                    <span className="assistant-btn-desc">Snow-covered landscapes.</span>
+                                </div>
+                            </button>
+                            <button className="btn btn-secondary assistant-btn landscapes" onClick={handleStormWeather} disabled={isFetchingSuggestions}>
+                                <div className="assistant-btn-icon-container"><RainIcon /></div>
+                                <div className="assistant-btn-text-container">
+                                    <span className="assistant-btn-title">Storm Weather</span>
+                                    <span className="assistant-btn-desc">Dramatic weather conditions.</span>
+                                </div>
+                            </button>
+                            <button className="btn btn-secondary assistant-btn landscapes" onClick={handleCanyonViews} disabled={isFetchingSuggestions}>
+                                <div className="assistant-btn-icon-container"><CanyonIcon /></div>
+                                <div className="assistant-btn-text-container">
+                                    <span className="assistant-btn-title">Canyon Views</span>
+                                    <span className="assistant-btn-desc">Rock formations and geology.</span>
+                                </div>
+                            </button>
+                            <button className="btn btn-secondary assistant-btn landscapes" onClick={handleVolcanicTerrain} disabled={isFetchingSuggestions}>
+                                <div className="assistant-btn-icon-container"><VolcanoIcon /></div>
+                                <div className="assistant-btn-text-container">
+                                    <span className="assistant-btn-title">Volcanic Terrain</span>
+                                    <span className="assistant-btn-desc">Igneous formations and geothermal.</span>
+                                </div>
+                            </button>
+                            <button className="btn btn-secondary assistant-btn landscapes" onClick={handleValleyVistas} disabled={isFetchingSuggestions}>
+                                <div className="assistant-btn-icon-container"><ValleyIcon /></div>
+                                <div className="assistant-btn-text-container">
+                                    <span className="assistant-btn-title">Valley Vistas</span>
+                                    <span className="assistant-btn-desc">Lowland landscapes and rivers.</span>
+                                </div>
+                            </button>
+                            <button className="btn btn-secondary assistant-btn landscapes" onClick={handleCoastalBeacons} disabled={isFetchingSuggestions}>
+                                <div className="assistant-btn-icon-container"><LighthouseIcon /></div>
+                                <div className="assistant-btn-text-container">
+                                    <span className="assistant-btn-title">Coastal Beacons</span>
+                                    <span className="assistant-btn-desc">Lighthouse and maritime scenes.</span>
+                                </div>
+                            </button>
+                            <button className="btn btn-secondary assistant-btn landscapes" onClick={handleTropicalIslands} disabled={isFetchingSuggestions}>
+                                <div className="assistant-btn-icon-container"><IslandIcon /></div>
+                                <div className="assistant-btn-text-container">
+                                    <span className="assistant-btn-title">Tropical Islands</span>
+                                    <span className="assistant-btn-desc">Paradise landscapes and ecosystems.</span>
                                 </div>
                             </button>
                         </div>
