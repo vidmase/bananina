@@ -11,8 +11,8 @@ export default defineConfig(({ mode }) => {
       },
       server: {
         host: true, // listen on all addresses, including LAN
-        port: 5173,
-        strictPort: true, // fail instead of switching ports silently
+        port: 5174,
+        strictPort: false, // allow switching ports if busy
         open: true, // auto-open in default browser
       },
       resolve: {

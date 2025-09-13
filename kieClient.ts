@@ -309,7 +309,7 @@ class KieClient {
     throw new Error('Task timed out');
   }
 
-  async generateImage(prompt: string, baseImage?: string): Promise<string> {
+  async generateImage(prompt: string, baseImage?: string, referenceImage?: string): Promise<string> {
     // Always use the editing model when baseImage is provided for image editing
     const model = 'google/nano-banana-edit';
     
@@ -322,7 +322,7 @@ class KieClient {
       },
     };
 
-    // For image editing, we need to provide the base image
+    // For image editing, we need to provide the base image and optionally reference image
     if (baseImage) {
       try {
         DebugLogger.log('GENERATE_IMAGE', 'Processing base image for editing');
@@ -330,11 +330,22 @@ class KieClient {
         // kie.ai API expects public HTTP URLs, not data URLs
         // We need to upload the image to get a public URL
         const imageUrl = await this.uploadImageToPublicUrl(baseImage);
-        DebugLogger.log('GENERATE_IMAGE', `Using public image URL: ${imageUrl}`);
+        DebugLogger.log('GENERATE_IMAGE', `Using public base image URL: ${imageUrl}`);
         requestData.input.image_urls = [imageUrl];
+        
+        // If reference image is provided, add it as a second image URL
+        if (referenceImage) {
+          DebugLogger.log('GENERATE_IMAGE', 'Processing reference image');
+          const refImageUrl = await this.uploadImageToPublicUrl(referenceImage);
+          DebugLogger.log('GENERATE_IMAGE', `Using public reference image URL: ${refImageUrl}`);
+          requestData.input.image_urls.push(refImageUrl);
+          
+          // Update prompt to specifically reference both images
+          requestData.input.prompt = `Edit the first image using the second image as a reference: ${prompt}. Apply the exact style, colors, patterns, and design from the reference image to the main subject. Ensure realistic fit and lighting.`;
+        }
       } catch (processError) {
-        DebugLogger.error('GENERATE_IMAGE', 'Failed to process base image', processError);
-        throw new Error('Failed to process image for editing. Please try again.');
+        DebugLogger.error('GENERATE_IMAGE', 'Failed to process images', processError);
+        throw new Error('Failed to process images for editing. Please try again.');
       }
     } else {
       throw new Error('Base image is required for image editing');

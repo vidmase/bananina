@@ -480,6 +480,10 @@ const App: React.FC = () => {
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = useState<string>(LOADING_MESSAGES[0]);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  // Virtual Try-On uses referenceImage (auto-apply). For manual reference editing,
+  // we introduce a separate Image Reference that does not auto-apply.
+  const [imageReference, setImageReference] = useState<string | null>(null);
+  const [imageReferencePrompt, setImageReferencePrompt] = useState<string>('');
   const [styleDirectorImage, setStyleDirectorImage] = useState<string | null>(null);
   const [maskImage, setMaskImage] = useState<string | null>(null);
   const [isMasking, setIsMasking] = useState<boolean>(false);
@@ -497,6 +501,14 @@ const App: React.FC = () => {
   const [showPinModal, setShowPinModal] = useState<boolean>(false);
   const [pinInput, setPinInput] = useState<string>('');
   const [pinError, setPinError] = useState<string>('');
+  
+  // Full-size image preview states
+  const [showImagePreview, setShowImagePreview] = useState<boolean>(false);
+  const [previewImageSrc, setPreviewImageSrc] = useState<string>('');
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [panPosition, setPanPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // PIN validation
   const validatePin = (inputPin: string): boolean => {
@@ -548,6 +560,61 @@ const App: React.FC = () => {
 
 
   const [image, setImage] = useState<string | null>(null);
+
+  // Full-size image preview functions
+  const openImagePreview = (imageSrc: string) => {
+    setPreviewImageSrc(imageSrc);
+    setShowImagePreview(true);
+    setZoomLevel(1);
+    setPanPosition({ x: 0, y: 0 });
+  };
+
+  const closeImagePreview = () => {
+    setShowImagePreview(false);
+    setPreviewImageSrc('');
+    setZoomLevel(1);
+    setPanPosition({ x: 0, y: 0 });
+    setIsDragging(false);
+  };
+
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev * 1.5, 5));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(prev / 1.5, 0.5));
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+    setPanPosition({ x: 0, y: 0 });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoomLevel > 1) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && zoomLevel > 1) {
+      setPanPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setZoomLevel(prev => Math.max(0.5, Math.min(5, prev * delta)));
+  };
   const [activeTab, setActiveTab] = useState<ActiveTab>('edit');
 
 
@@ -653,6 +720,8 @@ const App: React.FC = () => {
       setHistoryIndex(0);
       setMaskImage(null);
       setReferenceImage(null);
+      setImageReference(null);
+      setImageReferencePrompt('');
       setStyleDirectorImage(null);
       setPrompt('');
       setActiveTab('edit');
@@ -686,22 +755,30 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   }, [image]);
 
-  const generateImage = useCallback(async (currentPrompt: string, baseImage: string) => {
-      // Skip Nano Banana API due to upload issues, use KIE client directly
-      console.log('Using KIE client for image editing');
-      
+  const generateEditedImage = useCallback(async (baseImage: string, currentPrompt: string) => {
+      // Validate inputs
+      if (!baseImage) throw new Error('No base image provided');
+
+      // If there's a mask, use the masked area for editing
       let enhancedPrompt = currentPrompt;
-      
+
       // Add specific editing context to ensure the API modifies the uploaded image
-      if (maskImage || styleDirectorImage || referenceImage) {
+      if (referenceImage) {
+        enhancedPrompt = `Use the reference image as a style guide and apply it to the main image: ${currentPrompt}. Match the exact colors, patterns, textures, and design details from the reference image. Ensure the reference item fits naturally on the person while preserving their pose and lighting.`;
+      } else if (imageReference) {
+        // Manual Image Reference flow: use the user's reference-specific prompt
+        const refInstruction = imageReferencePrompt?.trim() ? imageReferencePrompt.trim() : currentPrompt;
+        enhancedPrompt = `Use the uploaded image reference to guide the edit. ${refInstruction}. Apply changes to the BASE image while preserving the subject, perspective, and lighting. Do not auto-overlay garments unless explicitly requested.`;
+      } else if (maskImage || styleDirectorImage) {
         enhancedPrompt = `Modify the uploaded image by: ${currentPrompt}. Preserve the original subject and composition while applying the requested changes.`;
       } else {
         enhancedPrompt = `Apply the following changes to the uploaded image: ${currentPrompt}. Keep the original image structure and only modify as requested.`;
       }
       
       // Use KIE client directly for more reliable image editing
-      return await kieClient.generateImage(enhancedPrompt, baseImage);
-  }, [maskImage, styleDirectorImage, referenceImage]);
+      const refForApi = referenceImage || imageReference || null;
+      return await kieClient.generateImage(enhancedPrompt, baseImage, refForApi || undefined);
+  }, [maskImage, styleDirectorImage, referenceImage, imageReference, imageReferencePrompt]);
 
   // ---- Main AI Submit Logic ----
   const handleSubmit = useCallback(async (currentPrompt: string) => {
@@ -712,7 +789,7 @@ const App: React.FC = () => {
     setSuggestions(null); // Close suggestions panel if a new prompt is submitted
 
     try {
-      const newImage = await generateImage(currentPrompt, image);
+      const newImage = await generateEditedImage(image, currentPrompt);
       setImage(newImage);
       updateHistory(newImage);
     } catch (err) {
@@ -721,7 +798,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [image, generateImage, updateHistory]);
+  }, [image, generateEditedImage, updateHistory]);
 
   // ---- Prompt Enhancement ----
   const handleEnhancePrompt = useCallback(async () => {
@@ -812,7 +889,7 @@ const App: React.FC = () => {
         
         // Generate from original image for consistent previews
         const baseImageForPreview = imageBeforePreview || image;
-        const newImage = await generateImage(previewPrompt, baseImageForPreview);
+        const newImage = await generateEditedImage(baseImageForPreview, previewPrompt);
         setImage(newImage);
     } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to generate preview.");
@@ -823,7 +900,7 @@ const App: React.FC = () => {
     } finally {
         setIsPreviewLoading(null);
     }
-}, [image, imageBeforePreview, generateImage]);
+}, [image, imageBeforePreview, generateEditedImage]);
 
 // Helper function to provide predefined suggestions
 const getPredefinedSuggestions = (category: string): {name: string, prompt: string}[] => {
@@ -872,6 +949,351 @@ const getPredefinedSuggestions = (category: string): {name: string, prompt: stri
       { name: 'Adventure Scene', prompt: 'Transform into an epic adventure scene with dramatic action' },
       { name: 'Fairy Tale', prompt: 'Create a whimsical fairy tale atmosphere with magical elements' },
       { name: 'Sci-Fi Story', prompt: 'Turn into a futuristic sci-fi scene with advanced technology' }
+    ],
+    'Pose Director': [
+      { name: 'Confident Stance', prompt: 'Adjust pose to show confident body language with straight posture and relaxed shoulders' },
+      { name: 'Dynamic Action', prompt: 'Create a more dynamic pose with movement and energy in the body positioning' },
+      { name: 'Professional Portrait', prompt: 'Optimize pose for professional headshot with proper head angle and hand placement' }
+    ],
+    'Portrait Studio': [
+      { name: 'Expression Enhancement', prompt: 'Enhance facial expression to be more engaging and natural' },
+      { name: 'Hair Styling', prompt: 'Improve hair styling and texture for a polished look' },
+      { name: 'Subtle Makeup', prompt: 'Apply subtle, professional makeup enhancement' }
+    ],
+    'VFX Supervisor': [
+      { name: 'Particle Effects', prompt: 'Add magical glowing particles swirling around the subject' },
+      { name: 'Cinematic Flare', prompt: 'Add cinematic lens flare and anamorphic light streaks' },
+      { name: 'Atmospheric Effects', prompt: 'Create dramatic atmospheric effects like fog or mist' }
+    ],
+    'Prop Master': [
+      { name: 'Mysterious Object', prompt: 'Add a mysterious, intriguing object that enhances the story' },
+      { name: 'Period Appropriate', prompt: 'Include props that match a specific historical period' },
+      { name: 'Interactive Element', prompt: 'Add props that the subject can interact with naturally' }
+    ],
+    'Interior Makeover': [
+      { name: 'Scandinavian Style', prompt: 'Transform to clean Scandinavian design with light woods and minimalism' },
+      { name: 'Industrial Loft', prompt: 'Apply industrial loft style with exposed brick and metal elements' },
+      { name: 'Cozy Cottage', prompt: 'Create a warm, cozy cottage atmosphere with rustic elements' }
+    ],
+    'Furniture': [
+      { name: 'Modern Upgrade', prompt: 'Replace furniture with sleek, modern pieces' },
+      { name: 'Vintage Classic', prompt: 'Add vintage, classic furniture pieces for timeless appeal' },
+      { name: 'Comfort Focus', prompt: 'Emphasize comfortable, inviting furniture arrangements' }
+    ],
+    'Interior Palettes': [
+      { name: 'Warm Earth Tones', prompt: 'Apply warm earth tone color palette with browns and oranges' },
+      { name: 'Cool Minimalist', prompt: 'Use cool, minimalist colors with whites, grays, and blues' },
+      { name: 'Bold Accent', prompt: 'Add bold accent colors while keeping base neutral' }
+    ],
+    'Declutter': [
+      { name: 'Minimalist Clean', prompt: 'Remove all unnecessary items for a clean, minimalist look' },
+      { name: 'Essential Only', prompt: 'Keep only essential items, removing visual clutter' },
+      { name: 'Organized Space', prompt: 'Organize remaining items into neat, purposeful arrangements' }
+    ],
+    'Season & Weather': [
+      { name: 'Winter Wonderland', prompt: 'Transform into a snowy winter landscape with frost and ice' },
+      { name: 'Autumn Colors', prompt: 'Change foliage to vibrant autumn colors with falling leaves' },
+      { name: 'Dramatic Storm', prompt: 'Add dramatic storm clouds and atmospheric weather effects' }
+    ],
+    'Photo Restoration': [
+      { name: 'Damage Repair', prompt: 'Remove scratches, tears, and physical damage from the photograph' },
+      { name: 'Color Revival', prompt: 'Restore faded colors and improve color accuracy' },
+      { name: 'Clarity Enhancement', prompt: 'Reduce noise and enhance overall image clarity' }
+    ],
+    'AI Enhancement': [
+      { name: 'Super Resolution', prompt: 'Apply AI super-resolution to increase detail and sharpness' },
+      { name: 'Detail Recovery', prompt: 'Use AI to recover and enhance fine details' },
+      { name: 'Smart Upscaling', prompt: 'Intelligently upscale while preserving quality' }
+    ],
+    'Style Transfer': [
+      { name: 'Van Gogh Style', prompt: 'Transform into Van Gogh\'s Starry Night brushstroke style with swirling patterns' },
+      { name: 'Picasso Cubist', prompt: 'Apply Picasso\'s cubist style with geometric shapes and multiple perspectives' },
+      { name: 'Japanese Ukiyo-e', prompt: 'Recreate in traditional Japanese ukiyo-e woodblock print style' }
+    ],
+    'Cinematic Effects': [
+      { name: 'Film Noir', prompt: 'Apply dramatic film noir lighting with high contrast and deep shadows' },
+      { name: 'Anamorphic Lens', prompt: 'Add cinematic anamorphic lens flares and wide aspect ratio feel' },
+      { name: 'Depth of Field', prompt: 'Create cinematic shallow depth of field with professional bokeh' }
+    ],
+    'Futuristic Tech': [
+      { name: 'Cyberpunk Neon', prompt: 'Add cyberpunk elements with neon lights and holographic displays' },
+      { name: 'Sci-Fi Interface', prompt: 'Integrate futuristic user interfaces and digital overlays' },
+      { name: 'Space Age Design', prompt: 'Transform with sleek space-age technology and materials' }
+    ],
+    'Emotion & Mood': [
+      { name: 'Melancholic Blues', prompt: 'Create melancholic atmosphere with cooler tones and soft lighting' },
+      { name: 'Warm Joy', prompt: 'Add warmth and joy with golden hour lighting and vibrant colors' },
+      { name: 'Dramatic Tension', prompt: 'Build dramatic tension with high contrast and moody shadows' }
+    ],
+    'Smart Analysis': [
+      { name: 'Color Cast Fix', prompt: 'Analyze and correct subtle color casts for natural color balance' },
+      { name: 'Focus Optimization', prompt: 'Identify and enhance focus issues for maximum sharpness' },
+      { name: 'Composition Tweak', prompt: 'Apply AI-detected composition improvements for better visual flow' }
+    ],
+    'Gaming & Fantasy': [
+      { name: 'RPG Character', prompt: 'Transform into epic RPG character with fantasy armor and magical aura' },
+      { name: 'Magical Elements', prompt: 'Add magical particles, glowing runes, and mystical atmosphere' },
+      { name: 'Video Game Environment', prompt: 'Create immersive video game environment with detailed textures' }
+    ],
+    'Problem Solver': [
+      { name: 'Exposure Fix', prompt: 'Correct overexposure or underexposure for balanced lighting' },
+      { name: 'Noise Reduction', prompt: 'Remove digital noise while preserving important details' },
+      { name: 'Object Removal', prompt: 'Remove unwanted objects or distracting elements from the scene' }
+    ],
+    'Trend Predictor': [
+      { name: 'Social Media Ready', prompt: 'Optimize for current social media trends with popular filters and effects' },
+      { name: 'Viral Aesthetic', prompt: 'Apply trending visual aesthetics that perform well on platforms' },
+      { name: 'Influencer Style', prompt: 'Transform with current influencer photography styles and colors' }
+    ],
+    // Automotive Categories
+    'Body Kit Designer': [
+      { name: 'Widebody Kit', prompt: 'Add aggressive widebody kit with flared fenders and side skirts' },
+      { name: 'Aero Package', prompt: 'Install aerodynamic front splitter, rear diffuser, and spoiler' },
+      { name: 'Street Style', prompt: 'Apply clean street-style body modifications with subtle enhancements' }
+    ],
+    'Engine Tuning': [
+      { name: 'Turbo Upgrade', prompt: 'Add larger turbocharger with supporting modifications for more power' },
+      { name: 'Intake System', prompt: 'Install cold air intake and high-flow air filter system' },
+      { name: 'Performance Headers', prompt: 'Upgrade to performance exhaust headers and manifold' }
+    ],
+    'Performance Gauge': [
+      { name: 'Boost Gauge', prompt: 'Add boost pressure gauge to monitor turbo performance' },
+      { name: 'Digital Display', prompt: 'Install multi-parameter digital gauge display' },
+      { name: 'Oil Monitoring', prompt: 'Add oil pressure and temperature monitoring gauges' }
+    ],
+    'Exhaust System': [
+      { name: 'Cat-Back System', prompt: 'Install performance cat-back exhaust with aggressive sound' },
+      { name: 'Headers Upgrade', prompt: 'Add long-tube headers for maximum flow and power' },
+      { name: 'Dual Exit', prompt: 'Convert to dual exhaust tips for sporty appearance' }
+    ],
+    'Suspension Setup': [
+      { name: 'Coilover Kit', prompt: 'Install adjustable coilover suspension for track performance' },
+      { name: 'Lowering Springs', prompt: 'Add lowering springs for improved stance and handling' },
+      { name: 'Sway Bar Upgrade', prompt: 'Install performance sway bars to reduce body roll' }
+    ],
+    'Safety Upgrades': [
+      { name: 'Roll Cage', prompt: 'Install professional roll cage for track safety' },
+      { name: 'Racing Seats', prompt: 'Add bucket racing seats with proper harnesses' },
+      { name: 'Fire System', prompt: 'Install automatic fire suppression system' }
+    ],
+    'Cooling System': [
+      { name: 'Radiator Upgrade', prompt: 'Install larger aluminum radiator for better cooling' },
+      { name: 'Oil Cooler', prompt: 'Add engine and transmission oil cooling systems' },
+      { name: 'Intercooler', prompt: 'Upgrade to front-mount intercooler for turbo applications' }
+    ],
+    'Audio System': [
+      { name: 'Premium Sound', prompt: 'Install high-end component speakers and amplifiers' },
+      { name: 'Subwoofer Setup', prompt: 'Add custom subwoofer enclosure for deep bass' },
+      { name: 'Head Unit', prompt: 'Upgrade to touchscreen head unit with navigation' }
+    ],
+    'Electrical Mods': [
+      { name: 'High Output Alternator', prompt: 'Install high-capacity alternator for electrical demands' },
+      { name: 'Performance Battery', prompt: 'Upgrade to lightweight performance battery' },
+      { name: 'Wiring Harness', prompt: 'Add performance wiring harness for reliability' }
+    ],
+    'ECU Tuning': [
+      { name: 'Stage 1 Tune', prompt: 'Apply Stage 1 ECU tune for safe power gains' },
+      { name: 'Custom Mapping', prompt: 'Create custom fuel and ignition maps for modifications' },
+      { name: 'Launch Control', prompt: 'Add launch control and anti-lag systems' }
+    ],
+    // People & Portrait Categories
+    'Expression Coach': [
+      { name: 'Confident Expression', prompt: 'Enhance facial expression to show confidence and engagement' },
+      { name: 'Natural Smile', prompt: 'Create a more natural, authentic smile and eye expression' },
+      { name: 'Professional Look', prompt: 'Adjust expression for professional headshot appeal' }
+    ],
+    'Group Dynamics': [
+      { name: 'Better Spacing', prompt: 'Improve group positioning and spacing for balanced composition' },
+      { name: 'Interaction Focus', prompt: 'Enhance natural interactions and connections between people' },
+      { name: 'Hierarchy Balance', prompt: 'Arrange group to show proper visual hierarchy and relationships' }
+    ],
+    'Child Photography': [
+      { name: 'Playful Environment', prompt: 'Create engaging, child-friendly environment with toys and colors' },
+      { name: 'Natural Expression', prompt: 'Capture authentic childhood expressions and genuine emotions' },
+      { name: 'Safe Interaction', prompt: 'Add age-appropriate props and safe interaction elements' }
+    ],
+    'Glamour Shots': [
+      { name: 'Dramatic Lighting', prompt: 'Apply high-fashion dramatic lighting with strong shadows' },
+      { name: 'Elegant Pose', prompt: 'Create sophisticated, magazine-worthy glamour pose' },
+      { name: 'Luxury Setting', prompt: 'Transform background to luxurious, high-end environment' }
+    ],
+    'Beauty Retouching': [
+      { name: 'Skin Smoothing', prompt: 'Apply natural skin smoothing while maintaining texture' },
+      { name: 'Eye Enhancement', prompt: 'Enhance eyes with subtle brightening and definition' },
+      { name: 'Natural Glow', prompt: 'Add healthy, natural glow to skin tone' }
+    ],
+    'Eyewear Styling': [
+      { name: 'Reflection Control', prompt: 'Minimize unwanted reflections on glasses lenses' },
+      { name: 'Frame Enhancement', prompt: 'Enhance eyewear frames to complement face shape' },
+      { name: 'Style Matching', prompt: 'Match eyewear style to overall portrait aesthetic' }
+    ],
+    'Hair Styling': [
+      { name: 'Volume Boost', prompt: 'Add natural volume and texture to hair' },
+      { name: 'Color Enhancement', prompt: 'Enhance hair color richness and shine' },
+      { name: 'Style Refinement', prompt: 'Refine hair styling for polished, professional look' }
+    ],
+    'Skin Perfection': [
+      { name: 'Tone Evening', prompt: 'Even out skin tone while maintaining natural texture' },
+      { name: 'Blemish Removal', prompt: 'Remove temporary blemishes and imperfections' },
+      { name: 'Healthy Radiance', prompt: 'Add natural, healthy radiance to skin' }
+    ],
+    'Age Enhancement': [
+      { name: 'Wisdom Lines', prompt: 'Add distinguished character lines that show wisdom and experience' },
+      { name: 'Youthful Vitality', prompt: 'Enhance youthful energy while maintaining authenticity' },
+      { name: 'Dignified Aging', prompt: 'Create dignified, graceful aging representation' }
+    ],
+    'Body Contouring': [
+      { name: 'Posture Improvement', prompt: 'Enhance posture for more confident body language' },
+      { name: 'Natural Silhouette', prompt: 'Optimize natural body silhouette and proportions' },
+      { name: 'Flattering Angles', prompt: 'Adjust body positioning for most flattering angles' }
+    ],
+    // Photography Essentials Categories
+    'Depth Master': [
+      { name: 'Shallow DOF', prompt: 'Create shallow depth of field with beautiful bokeh background blur' },
+      { name: 'Focus Stacking', prompt: 'Apply focus stacking for maximum sharpness throughout the image' },
+      { name: 'Bokeh Enhancement', prompt: 'Enhance background bokeh quality and smoothness' }
+    ],
+    'Focus Stacking': [
+      { name: 'Macro Detail', prompt: 'Stack multiple focus planes for incredible macro detail' },
+      { name: 'Landscape Sharp', prompt: 'Achieve front-to-back sharpness in landscape photography' },
+      { name: 'Product Focus', prompt: 'Create perfectly sharp product shots with focus stacking' }
+    ],
+    'Long Exposure': [
+      { name: 'Water Silk', prompt: 'Create silky smooth water effects with long exposure technique' },
+      { name: 'Light Trails', prompt: 'Capture dynamic light trails from moving sources' },
+      { name: 'Cloud Streaks', prompt: 'Show cloud movement with streaking long exposure effects' }
+    ],
+    'HDR Blending': [
+      { name: 'Shadow Recovery', prompt: 'Recover shadow details while maintaining highlight information' },
+      { name: 'Tone Mapping', prompt: 'Apply natural HDR tone mapping for balanced exposure' },
+      { name: 'Dynamic Range', prompt: 'Expand dynamic range to capture full scene detail' }
+    ],
+    'Macro Precision': [
+      { name: 'Extreme Close-up', prompt: 'Achieve extreme magnification with perfect focus precision' },
+      { name: 'Detail Enhancement', prompt: 'Enhance fine details visible only in macro photography' },
+      { name: 'Lighting Control', prompt: 'Optimize lighting for small subject macro photography' }
+    ],
+    'Perspective Wizard': [
+      { name: 'Keystone Fix', prompt: 'Correct keystone distortion in architectural photography' },
+      { name: 'Lens Correction', prompt: 'Fix lens distortion and vignetting issues' },
+      { name: 'Creative Angles', prompt: 'Apply creative perspective changes for unique viewpoints' }
+    ],
+    'Motion Capture': [
+      { name: 'Action Freeze', prompt: 'Freeze fast action with perfect sharpness and timing' },
+      { name: 'Panning Shot', prompt: 'Create dynamic panning shots with motion blur background' },
+      { name: 'Sports Moment', prompt: 'Capture peak action moments in sports photography' }
+    ],
+    'Light Spectrum': [
+      { name: 'Color Temperature', prompt: 'Adjust color temperature for accurate white balance' },
+      { name: 'Spectral Analysis', prompt: 'Analyze and enhance specific color spectrums' },
+      { name: 'UV Enhancement', prompt: 'Reveal UV spectrum details invisible to naked eye' }
+    ],
+    'Frame Analysis': [
+      { name: 'Rule of Thirds', prompt: 'Apply rule of thirds for optimal compositional balance' },
+      { name: 'Leading Lines', prompt: 'Enhance leading lines to guide viewer attention' },
+      { name: 'Visual Flow', prompt: 'Optimize visual flow and eye movement through the frame' }
+    ],
+    'Camera Calibration': [
+      { name: 'Lens Profile', prompt: 'Apply precise lens profile corrections for optical accuracy' },
+      { name: 'Sensor Optimization', prompt: 'Optimize image based on specific camera sensor characteristics' },
+      { name: 'Color Accuracy', prompt: 'Calibrate colors for accurate reproduction and consistency' }
+    ],
+    // Architecture & Interior Categories
+    'Space Planning': [
+      { name: 'Traffic Flow', prompt: 'Optimize furniture arrangement for better traffic flow' },
+      { name: 'Functional Zones', prompt: 'Create distinct functional zones within the space' },
+      { name: 'Space Efficiency', prompt: 'Maximize space efficiency with smart layout solutions' }
+    ],
+    'Room Measurements': [
+      { name: 'Proportion Balance', prompt: 'Adjust proportions using golden ratio principles' },
+      { name: 'Scale Harmony', prompt: 'Ensure furniture scale harmonizes with room dimensions' },
+      { name: 'Visual Weight', prompt: 'Balance visual weight distribution throughout the space' }
+    ],
+    'Window Design': [
+      { name: 'Natural Light', prompt: 'Optimize window treatments to maximize natural light' },
+      { name: 'Privacy Balance', prompt: 'Balance privacy needs with light and view access' },
+      { name: 'Architectural Style', prompt: 'Match window design to architectural style' }
+    ],
+    'Door Styling': [
+      { name: 'Entry Impact', prompt: 'Create impressive entryway with statement door design' },
+      { name: 'Hardware Upgrade', prompt: 'Upgrade door hardware for style and functionality' },
+      { name: 'Material Match', prompt: 'Match door materials to architectural style' }
+    ],
+    'Staircase Design': [
+      { name: 'Dramatic Railings', prompt: 'Add dramatic staircase railings with architectural impact' },
+      { name: 'Material Upgrade', prompt: 'Upgrade staircase materials for luxury appeal' },
+      { name: 'Safety Enhancement', prompt: 'Enhance staircase safety while maintaining aesthetics' }
+    ],
+    'Lighting Design': [
+      { name: 'Layered Lighting', prompt: 'Create sophisticated layered lighting scheme' },
+      { name: 'Accent Features', prompt: 'Add accent lighting to highlight architectural features' },
+      { name: 'Mood Control', prompt: 'Install mood lighting for ambiance control' }
+    ],
+    'Material Textures': [
+      { name: 'Rich Textures', prompt: 'Add rich material textures for tactile interest' },
+      { name: 'Pattern Play', prompt: 'Incorporate interesting patterns and surface treatments' },
+      { name: 'Contrast Balance', prompt: 'Balance smooth and textured materials for visual interest' }
+    ],
+    'Biophilic Design': [
+      { name: 'Plant Integration', prompt: 'Integrate living plants for natural wellness' },
+      { name: 'Natural Materials', prompt: 'Use natural wood and stone materials' },
+      { name: 'Nature Views', prompt: 'Optimize views and connection to outdoor nature' }
+    ],
+    'Outdoor Spaces': [
+      { name: 'Furniture Arrangement', prompt: 'Arrange outdoor furniture for comfort and flow' },
+      { name: 'Weather Protection', prompt: 'Add weather protection for year-round use' },
+      { name: 'Landscape Integration', prompt: 'Integrate landscaping with outdoor living areas' }
+    ],
+    'Ceiling Features': [
+      { name: 'Coffered Details', prompt: 'Add coffered ceiling details for architectural drama' },
+      { name: 'Height Enhancement', prompt: 'Create illusion of height with ceiling design' },
+      { name: 'Lighting Integration', prompt: 'Integrate lighting into ceiling design' }
+    ],
+    // Landscape Categories
+    'Ocean Waves': [
+      { name: 'Wave Motion', prompt: 'Capture dynamic wave motion and foam patterns' },
+      { name: 'Coastal Drama', prompt: 'Add dramatic coastal elements and marine atmosphere' },
+      { name: 'Water Clarity', prompt: 'Enhance water clarity and ocean depth effects' }
+    ],
+    'Forest Depths': [
+      { name: 'Light Filtering', prompt: 'Create beautiful light filtering through forest canopy' },
+      { name: 'Depth Layers', prompt: 'Add atmospheric depth with layered forest elements' },
+      { name: 'Wildlife Integration', prompt: 'Integrate subtle wildlife elements in forest scene' }
+    ],
+    'Desert Landscapes': [
+      { name: 'Sand Textures', prompt: 'Enhance sand dune textures and wind patterns' },
+      { name: 'Heat Shimmer', prompt: 'Add authentic heat shimmer and desert atmosphere' },
+      { name: 'Rock Formations', prompt: 'Enhance geological rock formations and erosion patterns' }
+    ],
+    'Winter Scenes': [
+      { name: 'Snow Texture', prompt: 'Create realistic snow texture and ice formations' },
+      { name: 'Winter Light', prompt: 'Apply crisp winter lighting and atmospheric effects' },
+      { name: 'Frost Details', prompt: 'Add delicate frost patterns and winter details' }
+    ],
+    'Storm Weather': [
+      { name: 'Lightning Drama', prompt: 'Add dramatic lightning effects and storm intensity' },
+      { name: 'Cloud Formation', prompt: 'Create powerful storm cloud formations' },
+      { name: 'Rain Effects', prompt: 'Add realistic rain patterns and wind effects' }
+    ],
+    'Canyon Views': [
+      { name: 'Rock Strata', prompt: 'Enhance geological rock stratification and layers' },
+      { name: 'Canyon Depth', prompt: 'Create dramatic depth perspective in canyon views' },
+      { name: 'Desert Colors', prompt: 'Enhance natural desert colors and geological tones' }
+    ],
+    'Volcanic Terrain': [
+      { name: 'Lava Effects', prompt: 'Add dramatic lava flows and volcanic activity' },
+      { name: 'Volcanic Rock', prompt: 'Enhance volcanic rock textures and formations' },
+      { name: 'Geothermal Features', prompt: 'Add geothermal steam and volcanic atmosphere' }
+    ],
+    'Valley Vistas': [
+      { name: 'River Systems', prompt: 'Enhance river meandering and water features' },
+      { name: 'Valley Depth', prompt: 'Create atmospheric perspective in valley landscapes' },
+      { name: 'Ecosystem Diversity', prompt: 'Add diverse vegetation and ecosystem elements' }
+    ],
+    'Coastal Beacons': [
+      { name: 'Lighthouse Drama', prompt: 'Enhance lighthouse structure and beacon lighting' },
+      { name: 'Maritime Atmosphere', prompt: 'Create authentic maritime coastal atmosphere' },
+      { name: 'Coastal Erosion', prompt: 'Add realistic coastal erosion and wave action' }
     ]
   };
   
@@ -887,16 +1309,68 @@ const handleConfirmSelection = useCallback(() => {
     updateHistory(image);
     setImageBeforePreview(null);
     setSuggestions(null);
+    setActiveSuggestionCategory('');
 }, [image, updateHistory]);
 
-const handleCancelAndRevert = useCallback(() => {
-    if (imageBeforePreview) {
-        setImage(imageBeforePreview);
-    }
-    setImageBeforePreview(null);
-    setSuggestions(null);
+const handleGenerateMoreSuggestions = useCallback(async () => {
+    if (!activeSuggestionCategory || !image) return;
+    
+    setIsFetchingSuggestions(true);
     setError(null);
-}, [imageBeforePreview]);
+    // Do NOT clear existing suggestions here. Keeping them prevents the
+    // suggestions panel from unmounting while new ones are fetched.
+    
+    try {
+        // Find the system instruction for the current category
+        const categoryHandlers: {[key: string]: string} = {
+            'Technical Advice': "You are an AI Photography Expert. Analyze the user's image and provide three technical suggestions to improve the photo. Focus on camera settings, exposure, focus, or other technical aspects. Each suggestion should be a clear, actionable prompt. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
+            'Color Grading': "You are an AI Color Grading Expert. Analyze the image and provide three creative color grading suggestions that would enhance the mood and visual impact. Focus on color temperature, saturation, contrast, and artistic color effects.",
+            'Composition': "You are an AI Composition Expert. Analyze the image and provide three suggestions to improve the composition and framing. Focus on rule of thirds, leading lines, symmetry, and visual balance.",
+            'Lighting': "You are an AI Lighting Expert. Analyze the image and provide three suggestions to enhance the lighting and mood. Focus on light direction, shadows, highlights, and atmospheric effects.",
+            'Depth Master': "You are an AI Depth of Field Expert. Analyze the image and provide three suggestions for enhancing depth and bokeh effects. Focus on aperture settings, focus points, and background blur techniques.",
+            'Focus Stacking': "You are an AI Focus Stacking Expert. Analyze the image and determine if focus stacking would enhance it. If so, provide three suggestions for capturing and blending multiple exposures to achieve maximum sharpness from foreground to background.",
+            'Long Exposure': "You are an AI Long Exposure Expert. Analyze the image and provide three suggestions for creating compelling long exposure effects. Focus on motion blur, light trails, and time-based artistic effects.",
+            'HDR Blending': "You are an AI HDR Expert. Analyze the image and provide three suggestions for HDR processing to enhance dynamic range. Focus on balancing highlights and shadows while maintaining natural appearance.",
+            'Macro Precision': "You are an AI Macro Photography Expert. Analyze the image and provide three suggestions for extreme close-up photography techniques. Focus on magnification, detail enhancement, and precision focusing.",
+            'Perspective Wizard': "You are an AI Perspective Expert. Analyze the image and provide three suggestions for correcting or creatively manipulating perspective and geometry. Focus on keystone correction, creative angles, and architectural enhancement."
+        };
+        
+        // Resolve system instruction for current category; if missing, fall back
+        // to a generic instruction that adapts to the category name.
+        const systemInstruction = categoryHandlers[activeSuggestionCategory] ?? (
+            `You are an AI Assistant specialized in ${activeSuggestionCategory}. ` +
+            `Analyze the user's image and provide exactly three fresh, creative, and actionable prompts that align with ` +
+            `${activeSuggestionCategory.toLowerCase()}. Each suggestion must be concise (<= 20 char title) and include a ` +
+            `detailed editing prompt. Avoid repeating earlier ideas.`
+        );
+        
+        // Generate fresh suggestions with randomization for uniqueness
+        const timestamp = Date.now();
+        const uniquenessPrompt = `Generate 3 completely FRESH and UNIQUE suggestions (timestamp: ${timestamp}). Analyze the image from a new perspective and provide innovative, creative approaches that haven't been suggested before. Be original and think outside the box for ${activeSuggestionCategory.toLowerCase()}.`;
+        
+        // Send a concise image reference instead of the raw base64 to avoid
+        // exceeding token limits and to keep the request stable.
+        const aiSuggestions = await deepseekClient.generateSuggestions(
+            systemInstruction + " " + uniquenessPrompt,
+            "the uploaded image"
+        );
+        
+        const suggestionsWithCategory = aiSuggestions.map((s: {name: string, prompt: string}) => ({
+            ...s,
+            category: activeSuggestionCategory,
+        }));
+        
+        // Replace suggestions entirely with fresh ones
+        setSuggestions(suggestionsWithCategory);
+        
+    } catch (err) {
+        console.error(`Generate More Error:`, err);
+        // Keep existing suggestions so the panel does not disappear on error
+        setError(`Failed to generate new suggestions. Please try again.`);
+    } finally {
+        setIsFetchingSuggestions(false);
+    }
+}, [activeSuggestionCategory, image]);
 
 const handleResetToOriginal = useCallback(() => {
     if (imageBeforePreview) {
@@ -908,137 +1382,137 @@ const handleResetToOriginal = useCallback(() => {
 }, [imageBeforePreview]);
 
   const handleGetCreativeIdeas = createSuggestionHandler(
-    "You are an AI Art Director. Analyze the user's image and provide three creative and transformative ideas. Each suggestion should be a concise, actionable prompt that dramatically alters the image's style or subject.",
+    "You are an AI Art Director. Analyze the user's image and provide three creative and transformative ideas. Each suggestion should be a concise, actionable prompt that dramatically alters the image's style or subject. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Creative Concepts"
   );
   const handleGetTechnicalAdvice = createSuggestionHandler(
-    "You are an AI Photography Expert. Analyze the user's image and provide three technical suggestions to improve the photo. Focus on camera settings, exposure, focus, or other technical aspects. Each suggestion should be a clear, actionable prompt.",
+    "You are an AI Photography Expert. Analyze the user's image and provide three technical suggestions to improve the photo. Focus on camera settings, exposure, focus, or other technical aspects. Each suggestion should be a clear, actionable prompt. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Technical Advice"
   );
 
   const handleGetColorGradingIdeas = createSuggestionHandler(
-    "You are an AI Colorist. Analyze the user's image and suggest three different professional color grades. Each suggestion should be an actionable prompt describing a specific cinematic or artistic color style (e.g., 'Apply a warm, golden-hour cinematic grade' or 'Give it a high-contrast, moody blue tone').",
+    "You are an AI Colorist. Analyze the user's image and suggest three different professional color grades. Each suggestion should be an actionable prompt describing a specific cinematic or artistic color style (e.g., 'Apply a warm, golden-hour cinematic grade' or 'Give it a high-contrast, moody blue tone'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Color Grading"
   );
   const handleGetColorAdvice = createSuggestionHandler(
-    "You are an AI Colorist. Analyze the user's image and suggest three different professional color grades. Each suggestion should be an actionable prompt describing a specific cinematic or artistic color style (e.g., 'Apply a warm, golden-hour cinematic grade' or 'Give it a high-contrast, moody blue tone').",
+    "You are an AI Colorist. Analyze the user's image and suggest three different professional color grades. Each suggestion should be an actionable prompt describing a specific cinematic or artistic color style (e.g., 'Apply a warm, golden-hour cinematic grade' or 'Give it a high-contrast, moody blue tone'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Color Grading"
   );
   const handleGetCompositionIdeas = createSuggestionHandler(
-    "You are an AI Composition Coach, an expert in photographic principles like the rule of thirds, leading lines, framing, and balance. Analyze the user's image and provide three distinct, actionable suggestions to improve its composition. Each suggestion should be a clear instruction the user can follow, like a specific crop or a generative fill idea. Frame your suggestions as if you are a helpful coach.",
+    "You are an AI Composition Coach, an expert in photographic principles like the rule of thirds, leading lines, framing, and balance. Analyze the user's image and provide three distinct, actionable suggestions to improve its composition. Each suggestion should be a clear instruction the user can follow, like a specific crop or a generative fill idea. Frame your suggestions as if you are a helpful coach. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Composition"
   );
   const handleGetLightingIdeas = createSuggestionHandler(
-    "You are an AI Lighting Director. Analyze the user's image and suggest three different professional lighting setups. Each suggestion should be a clear, actionable prompt describing a specific lighting style (e.g., 'Apply dramatic, high-contrast Rembrandt lighting from the top-left' or 'Relight the scene with a soft, warm, golden-hour glow').",
+    "You are an AI Lighting Director. Analyze the user's image and suggest three different professional lighting setups. Each suggestion should be a clear, actionable prompt describing a specific lighting style (e.g., 'Apply dramatic, high-contrast Rembrandt lighting from the top-left' or 'Relight the scene with a soft, warm, golden-hour glow'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Lighting"
   );
   const handleGetBackgroundIdeas = createSuggestionHandler(
-    "You are an AI Background Wizard. Analyze the user's image and suggest three creative and fitting new backgrounds. Each suggestion should be an actionable prompt that describes replacing the current background with a new scene (e.g., 'Replace the background with a bustling, futuristic cityscape at night' or 'Place the subject in a serene, misty forest at dawn').",
+    "You are an AI Background Wizard. Analyze the user's image and suggest three creative and fitting new backgrounds. Each suggestion should be an actionable prompt that describes replacing the current background with a new scene (e.g., 'Replace the background with a bustling, futuristic cityscape at night' or 'Place the subject in a serene, misty forest at dawn'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Background Swap"
   );
   const handleGetStoryIdeas = createSuggestionHandler(
-    "You are an AI Storyteller. Look at the user's image and invent three imaginative story-based prompts that transform the scene. Each suggestion should be an actionable prompt that turns the image into a narrative moment (e.g., 'Turn the person into a space explorer discovering a new alien planet' or 'Reimagine the scene as a page from a vintage fairytale book').",
+    "You are an AI Storyteller. Look at the user's image and invent three imaginative story-based prompts that transform the scene. Each suggestion should be an actionable prompt that turns the image into a narrative moment (e.g., 'Turn the person into a space explorer discovering a new alien planet' or 'Reimagine the scene as a page from a vintage fairytale book'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Storyteller"
   );
 
   const handleGetFashionAdvice = createSuggestionHandler(
-    "You are an AI Fashion Stylist. Analyze the clothing and style of any person in the image. Suggest three different outfits or style changes. Each suggestion should be a clear, actionable prompt to alter their fashion (e.g., 'Change the t-shirt to a formal tuxedo', 'Give them a futuristic cyberpunk jacket').",
+    "You are an AI Fashion Stylist. Analyze the clothing and style of any person in the image. Suggest three different outfits or style changes. Each suggestion should be a clear, actionable prompt to alter their fashion (e.g., 'Change the t-shirt to a formal tuxedo', 'Give them a futuristic cyberpunk jacket'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Fashion Stylist"
   );
 
   const handleGetArchitectureIdeas = createSuggestionHandler(
-    "You are an AI Architectural Advisor. Analyze any buildings or structures in the image. Provide three creative suggestions to alter the architectural style (e.g., 'transform the building into a futuristic brutalist structure', 'reimagine the house in a cozy cottage style with a thatched roof'). Each suggestion should be an actionable prompt.",
+    "You are an AI Architectural Advisor. Analyze any buildings or structures in the image. Provide three creative suggestions to alter the architectural style (e.g., 'transform the building into a futuristic brutalist structure', 'reimagine the house in a cozy cottage style with a thatched roof'). Each suggestion should be an actionable prompt. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Architectural Styles"
   );
 
   const handleGetVFXIdeas = createSuggestionHandler(
-    "You are an AI VFX Supervisor. Analyze the user's image and suggest three dramatic visual effects to add. Each suggestion should be a clear, actionable prompt (e.g., 'add magical glowing particles swirling around the subject', 'make it look like an explosion is happening in the background', 'add cinematic lens flare and anamorphic streaks').",
+    "You are an AI VFX Supervisor. Analyze the user's image and suggest three dramatic visual effects to add. Each suggestion should be a clear, actionable prompt (e.g., 'add magical glowing particles swirling around the subject', 'make it look like an explosion is happening in the background', 'add cinematic lens flare and anamorphic streaks'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "VFX Supervisor"
   );
 
   const handleGetPropIdeas = createSuggestionHandler(
-    "You are an AI Prop Master. Analyze the scene in the user's image and suggest three interesting props to add or replace. Each suggestion should be an actionable prompt that enhances the story or theme of the image (e.g., 'place a mysterious, old leather-bound book on the table', 'have the subject hold a glowing lantern', 'replace the coffee cup with an ornate, steaming teacup').",
+    "You are an AI Prop Master. Analyze the scene in the user's image and suggest three interesting props to add or replace. Each suggestion should be an actionable prompt that enhances the story or theme of the image (e.g., 'place a mysterious, old leather-bound book on the table', 'have the subject hold a glowing lantern', 'replace the coffee cup with an ornate, steaming teacup'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Prop Master"
   );
 
   const handleGetInteriorDesignIdeas = createSuggestionHandler(
-    "You are an AI Interior Designer. Analyze the room in the user's image and provide three complete makeover suggestions in different styles (e.g., Scandinavian, Mid-Century Modern, Industrial). Each suggestion should be an actionable prompt describing the new style.",
+    "You are an AI Interior Designer. Analyze the room in the user's image and provide three complete makeover suggestions in different styles (e.g., Scandinavian, Mid-Century Modern, Industrial). Each suggestion should be an actionable prompt describing the new style. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Interior Makeover"
   );
 
   const handleGetFurnitureIdeas = createSuggestionHandler(
-    "You are an AI Furniture Specialist. Analyze the furniture in the user's image. Suggest three specific changes, like adding a new piece of furniture, replacing an existing one, or changing its style. Each suggestion should be a clear, actionable prompt (e.g., 'Replace the coffee table with a rustic wooden one', 'Add a comfortable accent chair in the corner').",
+    "You are an AI Furniture Specialist. Analyze the furniture in the user's image. Suggest three specific changes, like adding a new piece of furniture, replacing an existing one, or changing its style. Each suggestion should be a clear, actionable prompt (e.g., 'Replace the coffee table with a rustic wooden one', 'Add a comfortable accent chair in the corner'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Furniture"
   );
 
   const handleGetColorPaletteIdeas = createSuggestionHandler(
-    "You are an AI Color Consultant. Analyze the color scheme of the interior space in the user's image. Suggest three new, harmonious color palettes. Each suggestion should be an actionable prompt describing the new colors for the walls, furniture, and accents (e.g., 'Change the wall color to a calming sage green and add warm beige accents').",
+    "You are an AI Color Consultant. Analyze the color scheme of the interior space in the user's image. Suggest three new, harmonious color palettes. Each suggestion should be an actionable prompt describing the new colors for the walls, furniture, and accents (e.g., 'Change the wall color to a calming sage green and add warm beige accents'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Interior Palettes"
   );
 
   const handleGetDeclutterIdeas = createSuggestionHandler(
-    "You are an AI Decluttering Expert, a master of minimalism and organization. Analyze the interior space in the user's image and suggest three ways to simplify and declutter the scene. Each suggestion should be an actionable prompt focused on removing objects to create a cleaner, more spacious look (e.g., 'Remove all items from the coffee table for a minimalist look', 'Clear the bookshelf, leaving only a few select items').",
+    "You are an AI Decluttering Expert, a master of minimalism and organization. Analyze the interior space in the user's image and suggest three ways to simplify and declutter the scene. Each suggestion should be an actionable prompt focused on removing objects to create a cleaner, more spacious look (e.g., 'Remove all items from the coffee table for a minimalist look', 'Clear the bookshelf, leaving only a few select items'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Declutter"
   );
   
   const handleGetPortraitIdeas = createSuggestionHandler(
-    "You are an AI Portrait Photographer. Analyze the person in the user's image. Provide three suggestions to enhance their portrait. These could include changing facial expression, hair style, or adding subtle makeup. Each suggestion should be a clear, actionable prompt.",
+    "You are an AI Portrait Photographer. Analyze the person in the user's image. Provide three suggestions to enhance their portrait. Focus on lighting, composition, and background elements while keeping the person's natural appearance. Each suggestion should be a clear, actionable prompt. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Portrait Studio"
   );
 
   const handleGetSeasonWeatherIdeas = createSuggestionHandler(
-    "You are Mother Nature's AI assistant. Analyze the landscape or outdoor scene in the user's image. Suggest three changes to the season or weather. Each suggestion should be an actionable prompt describing a new atmosphere (e.g., 'transform the scene into a snowy winter landscape', 'add dramatic storm clouds and rain', 'change the foliage to vibrant autumn colors').",
+    "You are Mother Nature's AI assistant. Analyze the landscape or outdoor scene in the user's image. Suggest three changes to the season or weather. Each suggestion should be an actionable prompt describing a new atmosphere (e.g., 'transform the scene into a snowy winter landscape', 'add dramatic storm clouds and rain', 'change the foliage to vibrant autumn colors'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Season & Weather"
   );
 
   // New AI Assistants
   const handleGetPhotoRestorationIdeas = createSuggestionHandler(
-    "You are an AI Photo Restoration Expert. Analyze the user's image for signs of damage, aging, or quality issues. Suggest three specific restoration improvements like removing scratches, fixing faded colors, reducing noise, or enhancing old photographs. Each suggestion should be a clear, actionable prompt.",
+    "You are an AI Photo Restoration Expert. Analyze the user's image for signs of damage, aging, or quality issues. Suggest three specific restoration improvements like removing scratches, fixing faded colors, reducing noise, or enhancing old photographs. Each suggestion should be a clear, actionable prompt. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Photo Restoration"
   );
 
   const handleGetAIEnhancementIdeas = createSuggestionHandler(
-    "You are an AI Enhancement Specialist. Analyze the user's image and suggest three cutting-edge AI-powered improvements. Focus on modern techniques like super-resolution, detail enhancement, or intelligent upscaling. Each suggestion should be an actionable prompt using advanced AI capabilities.",
+    "You are an AI Enhancement Specialist. Analyze the user's image and suggest three cutting-edge AI-powered improvements. Focus on modern techniques like super-resolution, detail enhancement, or intelligent upscaling. Each suggestion should be an actionable prompt using advanced AI capabilities. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "AI Enhancement"
   );
 
   const handleGetStyleTransferIdeas = createSuggestionHandler(
-    "You are an AI Style Transfer Artist. Analyze the user's image and suggest three artistic style transfers from famous artists or art movements. Each suggestion should transform the image into a different artistic style (e.g., 'apply Van Gogh's Starry Night brushstroke style', 'transform into Picasso's cubist style', 'recreate in Japanese ukiyo-e woodblock print style').",
+    "You are an AI Style Transfer Artist. Analyze the user's image and suggest three artistic style transfers from famous artists or art movements. Each suggestion should transform the image into a different artistic style (e.g., 'apply Van Gogh's Starry Night brushstroke style', 'transform into Picasso's cubist style', 'recreate in Japanese ukiyo-e woodblock print style'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Style Transfer"
   );
 
   const handleGetCinematicIdeas = createSuggestionHandler(
-    "You are an AI Cinematographer. Analyze the user's image and suggest three cinematic effects to make it look like a movie scene. Focus on film techniques like depth of field, color grading, lens effects, or dramatic lighting. Each suggestion should be an actionable prompt for creating cinematic atmosphere.",
+    "You are an AI Cinematographer. Analyze the user's image and suggest three cinematic effects to make it look like a movie scene. Focus on film techniques like depth of field, color grading, lens effects, or dramatic lighting. Each suggestion should be an actionable prompt for creating cinematic atmosphere. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Cinematic Effects"
   );
 
   const handleGetFuturisticIdeas = createSuggestionHandler(
-    "You are an AI Futurist. Analyze the user's image and suggest three ways to add futuristic or sci-fi elements. Think holographic displays, advanced technology, cyberpunk aesthetics, or space-age designs. Each suggestion should be an actionable prompt to modernize or futurize the scene.",
+    "You are an AI Futurist. Analyze the user's image and suggest three ways to add futuristic or sci-fi elements. Think holographic displays, advanced technology, cyberpunk aesthetics, or space-age designs. Each suggestion should be an actionable prompt to modernize or futurize the scene. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Futuristic Tech"
   );
 
   const handleGetEmotionMoodIdeas = createSuggestionHandler(
-    "You are an AI Emotion Specialist. Analyze the mood and emotional tone of the user's image. Suggest three ways to enhance or change the emotional impact through color, lighting, or atmospheric effects. Each suggestion should be an actionable prompt to evoke specific feelings (e.g., 'make it more melancholic with cooler tones and soft lighting', 'add warmth and joy with golden hour lighting').",
+    "You are an AI Emotion Specialist. Analyze the mood and emotional tone of the user's image. Suggest three ways to enhance or change the emotional impact through color, lighting, or atmospheric effects. Each suggestion should be an actionable prompt to evoke specific feelings (e.g., 'make it more melancholic with cooler tones and soft lighting', 'add warmth and joy with golden hour lighting'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Emotion & Mood"
   );
 
   const handleGetSmartAnalysisIdeas = createSuggestionHandler(
-    "You are an AI Image Analyst. Carefully examine the user's image and identify three specific technical or compositional improvements based on your analysis. Use your AI vision to spot issues humans might miss, like subtle color casts, minor focus problems, or composition tweaks. Each suggestion should be a precise, actionable prompt.",
+    "You are an AI Image Analyst. Carefully examine the user's image and identify three specific technical or compositional improvements based on your analysis. Use your AI vision to spot issues humans might miss, like subtle color casts, minor focus problems, or composition tweaks. Each suggestion should be a precise, actionable prompt. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Smart Analysis"
   );
 
   const handleGetGamingFantasyIdeas = createSuggestionHandler(
-    "You are an AI Game Art Director. Analyze the user's image and suggest three ways to transform it into gaming or fantasy art. Think RPG aesthetics, magical elements, fantasy creatures, or video game environments. Each suggestion should be an actionable prompt to create epic, fantastical scenes.",
+    "You are an AI Game Art Director. Analyze the user's image and suggest three ways to transform it into gaming or fantasy art. Think RPG aesthetics, magical elements, fantasy creatures, or video game environments. Each suggestion should be an actionable prompt to create epic, fantastical scenes. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Gaming & Fantasy"
   );
 
   const handleGetProblemSolverIdeas = createSuggestionHandler(
-    "You are an AI Problem Solver. Analyze the user's image for any visual problems or imperfections. Suggest three specific fixes for common issues like overexposure, underexposure, blur, noise, unwanted objects, or distracting elements. Each suggestion should be a clear, actionable prompt to solve a specific problem.",
+    "You are an AI Problem Solver. Analyze the user's image for any visual problems or imperfections. Suggest three specific fixes for common issues like overexposure, underexposure, blur, noise, unwanted objects, or distracting elements. Each suggestion should be a clear, actionable prompt to solve a specific problem. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Problem Solver"
   );
 
   const handleGetTrendPredictions = createSuggestionHandler(
-    "You are an AI Trend Predictor specializing in visual aesthetics and social media trends. Analyze the image and suggest modifications to make it more aligned with current viral trends, popular aesthetics, or emerging visual styles. Consider color palettes, composition techniques, filters, and visual elements that are currently performing well on social platforms. Provide specific, actionable suggestions for making the image more shareable and trend-forward.",
+    "You are an AI Trend Predictor specializing in visual aesthetics and social media trends. Analyze the image and suggest modifications to make it more aligned with current viral trends, popular aesthetics, or emerging visual styles. Consider color palettes, composition techniques, filters, and visual elements that are currently performing well on social platforms. Provide specific, actionable suggestions for making the image more shareable and trend-forward. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Trend Predictor"
   );
 
@@ -1145,7 +1619,7 @@ const handleResetToOriginal = useCallback(() => {
   );
 
   const handlePoseDirector = createSuggestionHandler(
-    "You are an AI Pose Director specializing in portrait positioning and body language optimization. Analyze the portrait and suggest pose improvements including hand placement, body angles, head positioning, and overall stance. Consider the subject's personality, the photo's purpose, and creating engaging poses. Provide specific recommendations for dynamic and flattering pose direction.",
+    "You are an AI Pose Director specializing in portrait positioning and body language optimization. Analyze the portrait and suggest pose improvements including hand placement, body angles, head positioning, and overall stance. Consider the subject's personality, the photo's purpose, and creating engaging poses. Provide specific recommendations for dynamic and flattering pose direction. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
     "Pose Director"
   );
 
@@ -1313,13 +1787,66 @@ const handleResetToOriginal = useCallback(() => {
     handleSubmit(prompt);
   };
   
+  // Auto-apply reference image functionality
+  const handleAutoReferenceApplication = useCallback(async (refImage: string) => {
+    if (!image) {
+      console.log('No base image available for auto-application');
+      return;
+    }
+    
+    console.log('Starting auto-application with reference image:', refImage.substring(0, 50) + '...');
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Save current image state for potential revert
+      if (!imageBeforePreview) {
+        setImageBeforePreview(image);
+      }
+      
+      // Generate universal automatic prompt for reference image application
+      const autoPrompt = "Replace my current clothing with the clothing in the reference image, ensuring proper fit, realistic shadows, and matching the lighting conditions of my photo";
+      
+      console.log('Using auto prompt:', autoPrompt);
+      console.log('Base image available:', !!image);
+      console.log('Reference image available:', !!refImage);
+      
+      // Apply reference image automatically using the same logic as manual submission
+      const newImage = await kieClient.generateImage(autoPrompt, image, refImage);
+      setImage(newImage);
+      
+      console.log('Auto-application successful');
+      
+    } catch (err) {
+      console.error('Auto-application failed:', err);
+      setError(err instanceof Error ? err.message : "Failed to apply reference image automatically.");
+      // Revert to original if auto-application fails
+      if (imageBeforePreview) {
+        setImage(imageBeforePreview);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [image, imageBeforePreview]);
+
   const handleGenericImageChange = (
       e: React.ChangeEvent<HTMLInputElement>,
       setter: React.Dispatch<React.SetStateAction<string | null>>
   ) => {
     if (e.target.files && e.target.files[0]) {
       const reader = new FileReader();
-      reader.onload = (event) => setter(event.target?.result as string);
+      reader.onload = (event) => {
+        const imageData = event.target?.result as string;
+        setter(imageData);
+        
+        // Auto-apply reference image when uploaded
+        if (setter === setReferenceImage && image && imageData) {
+          // Use setTimeout to ensure state is updated first and pass the reference image
+          setTimeout(() => {
+            handleAutoReferenceApplication(imageData);
+          }, 100);
+        }
+      };
       reader.readAsDataURL(e.target.files[0]);
     }
     // Reset file input to allow re-uploading the same file
@@ -1591,20 +2118,48 @@ const handleResetToOriginal = useCallback(() => {
                  </div>
                  <ImageInput
                   id="reference-image-upload"
-                  title="Reference Image"
+                  title="Virtual Try-On"
                   image={referenceImage}
-                  actionText="Upload Reference"
+                  actionText="Drop garment here"
                   onRemove={() => setReferenceImage(null)}
                   onChange={(e) => handleGenericImageChange(e, setReferenceImage)}
                 />
                  <ImageInput
-                  id="style-director-upload"
-                  title="Style Director"
-                  image={styleDirectorImage}
-                  actionText="Upload Style Image"
-                  onRemove={() => setStyleDirectorImage(null)}
-                  onChange={(e) => handleGenericImageChange(e, setStyleDirectorImage)}
+                 id="style-director-upload"
+                 title="Style Director"
+                 image={styleDirectorImage}
+                 actionText="Upload Style Image"
+                 onRemove={() => setStyleDirectorImage(null)}
+                 onChange={(e) => handleGenericImageChange(e, setStyleDirectorImage)}
                 />
+                <ImageInput
+                 id="image-reference-upload"
+                 title="Image Reference"
+                 image={imageReference}
+                 actionText="Upload Reference Image"
+                 onRemove={() => { setImageReference(null); setImageReferencePrompt(''); }}
+                 onChange={(e) => handleGenericImageChange(e, setImageReference)}
+               />
+               {imageReference && (
+                 <div className="control-group" style={{ marginTop: '0.5rem' }}>
+                   <h3 style={{ fontSize: '0.95rem' }}>Reference Prompt</h3>
+                   <textarea
+                     className="prompt-textarea"
+                     placeholder="Describe how to use this reference image on the base image (e.g., transfer color palette, replicate background style, match lighting, etc.)"
+                     value={imageReferencePrompt}
+                     onChange={(e) => setImageReferencePrompt(e.target.value)}
+                   />
+                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                     <button
+                       className="btn btn-primary"
+                       onClick={() => handleSubmit(imageReferencePrompt)}
+                       disabled={!image || !imageReference || !imageReferencePrompt.trim() || isLoading}
+                     >
+                       {isLoading ? 'Applying...' : 'Apply Reference Edit'}
+                     </button>
+                   </div>
+                 </div>
+               )}
               </div>
             )}
             {activeTab === 'effects' && (
@@ -2277,7 +2832,7 @@ const handleResetToOriginal = useCallback(() => {
           <aside className="suggestions-panel">
             <header className="suggestions-panel-header">
               <h2>{activeSuggestionCategory}</h2>
-              <button className="btn-close-panel" onClick={handleCancelAndRevert} aria-label="Close suggestions">&times;</button>
+              <button className="btn-close-panel" onClick={handleResetToOriginal} aria-label="Close suggestions">&times;</button>
             </header>
             <div className="suggestions-panel-body">
               {error && <p className="error-message" role="alert">{error}</p>}
@@ -2315,6 +2870,13 @@ const handleResetToOriginal = useCallback(() => {
               )}
             </div>
             <footer className="suggestions-panel-footer">
+              <button 
+                className="btn btn-secondary generate-more-btn" 
+                onClick={handleGenerateMoreSuggestions}
+                disabled={isFetchingSuggestions}
+              >
+                {isFetchingSuggestions ? 'Generating...' : 'Generate More'}
+              </button>
               <button className="btn btn-primary" onClick={handleConfirmSelection} disabled={!imageBeforePreview}>
                 Apply Selection
               </button>
@@ -2353,6 +2915,9 @@ const handleResetToOriginal = useCallback(() => {
                   <img
                     src={image}
                     alt="Editable image"
+                    onClick={() => openImagePreview(image)}
+                    style={{ cursor: 'pointer' }}
+                    title="Click to view full size"
                   />
                 )}
               </>
@@ -2360,12 +2925,102 @@ const handleResetToOriginal = useCallback(() => {
           </div>
         </main>
       </div>
+
+      {/* Full-size Image Preview Modal */}
+      {showImagePreview && (
+        <div className="image-preview-modal" onClick={closeImagePreview}>
+          <div className="image-preview-overlay">
+            <div className="image-preview-controls">
+              <button 
+                className="preview-control-btn" 
+                onClick={(e) => { e.stopPropagation(); handleZoomOut(); }}
+                title="Zoom Out"
+              >
+                -
+              </button>
+              <span className="zoom-level">{Math.round(zoomLevel * 100)}%</span>
+              <button 
+                className="preview-control-btn" 
+                onClick={(e) => { e.stopPropagation(); handleZoomIn(); }}
+                title="Zoom In"
+              >
+                +
+              </button>
+              <button 
+                className="preview-control-btn" 
+                onClick={(e) => { e.stopPropagation(); handleResetZoom(); }}
+                title="Reset Zoom"
+              >
+                Reset
+              </button>
+              <button 
+                className="preview-control-btn close-btn" 
+                onClick={closeImagePreview}
+                title="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div 
+              className="image-preview-container"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onWheel={handleWheel}
+              style={{ cursor: zoomLevel > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
+            >
+              <img
+                src={previewImageSrc}
+                alt="Full size preview"
+                className="preview-image"
+                style={{
+                  transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)`,
+                  transformOrigin: 'center center'
+                }}
+                draggable={false}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error?: any }>{
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: any, info: any) {
+    console.error('App crashed:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 24, color: '#fff', background: '#121212', minHeight: '100vh' }}>
+          <h2>Something went wrong while loading the app.</h2>
+          <pre style={{ whiteSpace: 'pre-wrap', marginTop: 12, color: '#ff6b6b' }}>
+            {String(this.state.error)}
+          </pre>
+          <p style={{ marginTop: 12, color: '#bbb' }}>Check the browser console for details.</p>
+        </div>
+      );
+    }
+    return this.props.children as any;
+  }
+}
+
 const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container);
-  root.render(<App />);
+  root.render(
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  );
 }
