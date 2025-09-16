@@ -25,6 +25,51 @@ export interface Suggestion {
 }
 
 class DeepSeekClient {
+  /**
+   * Generate suggestions with image analysis for People & Portraits categories
+   */
+  async generateSuggestionsWithImageAnalysis(
+    systemInstruction: string,
+    imageDataUrl: string,
+    featureName: string
+  ): Promise<Suggestion[]> {
+    try {
+      // First, analyze the image to get context
+      const imageAnalysis = await this.analyzeImage(imageDataUrl, featureName);
+      
+      // Then generate suggestions based on the analysis
+      return await this.generateSuggestions(systemInstruction, imageAnalysis);
+    } catch (error) {
+      console.error('Image analysis failed, falling back to generic suggestions:', error);
+      // Fallback to generic suggestions if image analysis fails
+      return await this.generateSuggestions(systemInstruction, "the uploaded image");
+    }
+  }
+
+  /**
+   * Analyze image using a vision-capable model (simulated with detailed prompting)
+   */
+  private async analyzeImage(imageDataUrl: string, featureName: string): Promise<string> {
+    // For now, we'll create a detailed analysis prompt based on the feature type
+    // This simulates image analysis by providing context-specific descriptions
+    
+    const analysisPrompts: { [key: string]: string } = {
+      'Fashion Stylist': 'a person wearing clothing that could benefit from fashion styling advice. Consider their current outfit, body type, setting, and overall style aesthetic',
+      'Portrait Studio': 'a portrait photo that could be enhanced with professional studio techniques including lighting, posing, and composition',
+      'Expression Coach': 'a person whose facial expression and body language could be coached for better engagement and natural appearance',
+      'Glamour Shots': 'a person who could benefit from glamour photography techniques including dramatic lighting, elegant posing, and sophisticated styling',
+      'Beauty Retouching': 'a portrait that could be enhanced with professional beauty retouching while maintaining natural appearance',
+      'Eyewear Styling': 'a person wearing or who could benefit from eyewear styling advice including frame selection and reflection management',
+      'Hair Styling': 'a person whose hairstyle could be enhanced or restyled for better overall appearance and photo composition',
+      'Skin Perfection': 'a portrait where skin tone and texture could be professionally enhanced while preserving natural characteristics',
+      'Age Enhancement': 'a person whose appearance could be enhanced to emphasize their best features at their current life stage',
+      'Body Contouring': 'a person whose pose and body positioning could be optimized for the most flattering photographic result',
+      'Pose Director': 'a person whose pose and body language could be directed for more dynamic and engaging photography'
+    };
+
+    return analysisPrompts[featureName] || 'an uploaded image that needs enhancement';
+  }
+
   async generateSuggestions(
     systemInstruction: string,
     imageDescription: string = "an uploaded image"

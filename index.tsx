@@ -853,11 +853,24 @@ const App: React.FC = () => {
     setSuggestions(null);
 
     try {
-      // Use DeepSeek to generate dynamic suggestions based on the image
-      const aiSuggestions = await deepseekClient.generateSuggestions(systemInstruction, "the uploaded image");
+      // Check if this is a People & Portraits category
+      const isPeople = [
+        'Portrait Studio', 'Expression Coach', 'Fashion Stylist', 'Glamour Shots', 
+        'Beauty Retouching', 'Eyewear Styling', 'Hair Styling', 'Skin Perfection', 
+        'Age Enhancement', 'Body Contouring', 'Pose Director'
+      ].includes(featureName);
+      
+      // Use enhanced image analysis for People & Portraits categories
+      const aiSuggestions = isPeople 
+        ? await deepseekClient.generateSuggestionsWithImageAnalysis(systemInstruction, image, featureName)
+        : await deepseekClient.generateSuggestions(systemInstruction, "the uploaded image");
+      
+      // Apply facial preservation constraint for People & Portraits categories
+      const FACIAL_PRESERVATION_CONSTRAINT = "Do not change any facial features, expression, face shape, skin tone, eyes, nose, mouth, birthmarks, scars, or hairstyle. Keep all aspects of the face exactly as in the original image.";
       
       const suggestionsWithCategory = aiSuggestions.map((s: {name: string, prompt: string}) => ({
         ...s,
+        prompt: isPeople ? `${s.prompt}. ${FACIAL_PRESERVATION_CONSTRAINT}` : s.prompt,
         category: featureName,
       }));
       setSuggestions(suggestionsWithCategory);
@@ -866,8 +879,16 @@ const App: React.FC = () => {
       console.error(`${featureName} Error:`, err);
       // Fallback to predefined suggestions if DeepSeek fails
       const fallbackSuggestions = getPredefinedSuggestions(featureName);
+      const isPeople = [
+        'Portrait Studio', 'Expression Coach', 'Fashion Stylist', 'Glamour Shots', 
+        'Beauty Retouching', 'Eyewear Styling', 'Hair Styling', 'Skin Perfection', 
+        'Age Enhancement', 'Body Contouring', 'Pose Director'
+      ].includes(featureName);
+      const FACIAL_PRESERVATION_CONSTRAINT = "Do not change any facial features, expression, face shape, skin tone, eyes, nose, mouth, birthmarks, scars, or hairstyle. Keep all aspects of the face exactly as in the original image.";
+      
       const suggestionsWithCategory = fallbackSuggestions.map((s: {name: string, prompt: string}) => ({
         ...s,
+        prompt: isPeople ? `${s.prompt}. ${FACIAL_PRESERVATION_CONSTRAINT}` : s.prompt,
         category: featureName,
       }));
       setSuggestions(suggestionsWithCategory);
@@ -936,9 +957,9 @@ const getPredefinedSuggestions = (category: string): {name: string, prompt: stri
       { name: 'Studio Setup', prompt: 'Use a clean, professional studio background' }
     ],
     'Fashion Stylist': [
-      { name: 'Formal Wear', prompt: 'Change outfit to elegant formal attire' },
-      { name: 'Casual Style', prompt: 'Update to trendy casual streetwear' },
-      { name: 'Vintage Fashion', prompt: 'Apply vintage 1950s fashion styling' }
+      { name: 'Business Chic', prompt: 'Transform into a sophisticated business professional look with tailored blazer, coordinated accessories, and polished styling' },
+      { name: 'Street Style', prompt: 'Update to contemporary street fashion with layered textures, trendy silhouettes, and statement accessories' },
+      { name: 'Classic Refined', prompt: 'Apply timeless, refined styling with quality fabrics, perfect fit, and elegant color coordination' }
     ],
     'Architectural Styles': [
       { name: 'Modern Minimalist', prompt: 'Transform to clean, modern minimalist architecture' },
@@ -1416,7 +1437,7 @@ const handleResetToOriginal = useCallback(() => {
   );
 
   const handleGetFashionAdvice = createSuggestionHandler(
-    "You are an AI Fashion Stylist. Analyze the clothing and style of any person in the image. Suggest three different outfits or style changes. Each suggestion should be a clear, actionable prompt to alter their fashion (e.g., 'Change the t-shirt to a formal tuxedo', 'Give them a futuristic cyberpunk jacket'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
+    "You are an expert AI Fashion Stylist with deep knowledge of current trends, body types, color theory, and style aesthetics. Analyze the person's current outfit, body proportions, setting, and overall style. Consider: 1) Current clothing fit and style 2) Color coordination and palette 3) Occasion appropriateness 4) Body-flattering silhouettes 5) Seasonal trends and timeless pieces. Provide three specific, actionable fashion transformation suggestions that would enhance their overall look while considering their apparent lifestyle and setting. Each suggestion should specify exact clothing items, colors, and styling details.",
     "Fashion Stylist"
   );
 

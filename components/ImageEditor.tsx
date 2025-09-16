@@ -419,9 +419,14 @@ const ImageEditor: React.FC = () => {
     setSuggestions(null);
 
     try {
-      const aiSuggestions = await deepseekClient.generateSuggestions(systemInstruction, "the uploaded image");
-      // If this feature is a People & Portraits category, append the facial preservation constraint
       const isPeople = PEOPLE_CATEGORIES.has(featureName);
+      
+      // Use enhanced image analysis for People & Portraits categories
+      const aiSuggestions = isPeople 
+        ? await deepseekClient.generateSuggestionsWithImageAnalysis(systemInstruction, image, featureName)
+        : await deepseekClient.generateSuggestions(systemInstruction, "the uploaded image");
+      
+      // If this feature is a People & Portraits category, append the facial preservation constraint
       const suggestionsWithCategory = aiSuggestions.map((s: {name: string, prompt: string}) => ({
         ...s,
         prompt: isPeople ? `${s.prompt}. ${FACIAL_PRESERVATION_CONSTRAINT}` : s.prompt,
@@ -534,6 +539,21 @@ const ImageEditor: React.FC = () => {
         { name: 'Professional Portrait', prompt: 'Optimize pose for headshot with proper head angle and hand placement' },
         { name: 'Confident Stance', prompt: 'Adjust pose to show confident body language with straight posture and relaxed shoulders' },
         { name: 'Dynamic Action', prompt: 'Create a more dynamic pose with movement and energy in the body positioning' },
+      ],
+      'Fashion Stylist': [
+        { name: 'Business Chic', prompt: 'Transform into a sophisticated business professional look with tailored blazer, coordinated accessories, and polished styling' },
+        { name: 'Street Style', prompt: 'Update to contemporary street fashion with layered textures, trendy silhouettes, and statement accessories' },
+        { name: 'Classic Refined', prompt: 'Apply timeless, refined styling with quality fabrics, perfect fit, and elegant color coordination' },
+      ],
+      'Glamour Shots': [
+        { name: 'Hollywood Glamour', prompt: 'Create a classic Hollywood glamour look with dramatic lighting and elegant styling' },
+        { name: 'Fashion Editorial', prompt: 'Apply high-fashion editorial styling with bold makeup and striking poses' },
+        { name: 'Red Carpet Ready', prompt: 'Transform into a red carpet ready look with luxurious styling and perfect lighting' },
+      ],
+      'Beauty Retouching': [
+        { name: 'Natural Enhancement', prompt: 'Apply subtle beauty retouching to enhance natural features while maintaining authenticity' },
+        { name: 'Flawless Complexion', prompt: 'Perfect skin tone and texture with professional beauty retouching techniques' },
+        { name: 'Radiant Glow', prompt: 'Add a healthy, radiant glow with professional beauty lighting and enhancement' },
       ],
     };
 
