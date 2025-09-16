@@ -1,0 +1,7 @@
+{
+  "name": "Bananina",
+  "description": "An AI-powered image editor using the Gemini API.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
