@@ -185,6 +185,7 @@ class KieClient {
       
       DebugLogger.log('UPLOAD', `Image details: ${blob.size} bytes, type: ${mimeType}`);
       
+<<<<<<< HEAD
       // Try Imgur first for a stable, public URL
       try {
         const formData = new FormData();
@@ -208,6 +209,8 @@ class KieClient {
         DebugLogger.warn('UPLOAD', 'Imgur upload exception', imgurErr);
       }
 
+=======
+>>>>>>> origin/master
       // Convert blob to base64 for direct API submission
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -268,12 +271,24 @@ class KieClient {
         DebugLogger.warn('UPLOAD', 'file.io upload failed', fileIoError);
       }
       
+<<<<<<< HEAD
       // If we reach here, we could not get a public URL reliably
       throw new Error('Failed to upload image to a public URL');
       
     } catch (error) {
       DebugLogger.error('UPLOAD', 'Image processing failed', error);
       throw error;
+=======
+      // As a last resort, try using the Kie.ai API with base64 data
+      // Some APIs accept base64 data in the image_urls field despite documentation
+      DebugLogger.log('UPLOAD', 'Trying base64 data URL as fallback');
+      return dataUrl;
+      
+    } catch (error) {
+      DebugLogger.error('UPLOAD', 'Image processing failed', error);
+      // Return the original data URL as absolute fallback
+      return dataUrl;
+>>>>>>> origin/master
     }
   }
 
@@ -342,7 +357,11 @@ class KieClient {
       },
     };
 
+<<<<<<< HEAD
     // For image editing, we need to provide the base image and optionally the reference image (for VTO)
+=======
+    // For image editing, we need to provide the base image and optionally reference image
+>>>>>>> origin/master
     if (baseImage) {
       try {
         DebugLogger.log('GENERATE_IMAGE', 'Processing base image for editing');
@@ -360,6 +379,7 @@ class KieClient {
           DebugLogger.log('GENERATE_IMAGE', `Using public reference image URL: ${refImageUrl}`);
           requestData.input.image_urls.push(refImageUrl);
           
+<<<<<<< HEAD
           // Update prompt to explicitly perform virtual try-on with strict rules
           requestData.input.prompt = [
             'Virtual Try-On task: Edit the FIRST image using the SECOND image as the clothing/outfit reference.',
@@ -371,6 +391,10 @@ class KieClient {
             'Match the lighting of the base image; avoid haloing or artifacts around edges.',
             `User request: ${prompt}`
           ].join(' ');
+=======
+          // Update prompt to specifically reference both images
+          requestData.input.prompt = `Edit the first image using the second image as a reference: ${prompt}. Apply the exact style, colors, patterns, and design from the reference image to the main subject. Ensure realistic fit and lighting.`;
+>>>>>>> origin/master
         }
       } catch (processError) {
         DebugLogger.error('GENERATE_IMAGE', 'Failed to process images', processError);
