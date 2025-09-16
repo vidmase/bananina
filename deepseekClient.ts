@@ -56,7 +56,7 @@ class DeepSeekClient {
     const analysisPrompts: { [key: string]: string } = {
       'Fashion Stylist': 'a person wearing clothing that could benefit from fashion styling advice. Consider their current outfit, body type, setting, and overall style aesthetic',
       'Portrait Studio': 'a portrait photo that could be enhanced with professional studio techniques including lighting, posing, and composition',
-      'Expression Coach': 'a person whose facial expression and body language could be coached for better engagement and natural appearance',
+      'Expression Coach': 'a person whose facial expression, eye contact, smile authenticity, micro-expressions, and emotional presence could be coached for better viewer engagement, professional appeal, and authentic emotional connection',
       'Glamour Shots': 'a person who could benefit from glamour photography techniques including dramatic lighting, elegant posing, and sophisticated styling',
       'Beauty Retouching': 'a portrait that could be enhanced with professional beauty retouching while maintaining natural appearance',
       'Eyewear Styling': 'a person wearing or who could benefit from eyewear styling advice including frame selection and reflection management',

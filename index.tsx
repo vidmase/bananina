@@ -1119,9 +1119,9 @@ const getPredefinedSuggestions = (category: string): {name: string, prompt: stri
     ],
     // People & Portrait Categories
     'Expression Coach': [
-      { name: 'Confident Expression', prompt: 'Enhance facial expression to show confidence and engagement' },
-      { name: 'Natural Smile', prompt: 'Create a more natural, authentic smile and eye expression' },
-      { name: 'Professional Look', prompt: 'Adjust expression for professional headshot appeal' }
+      { name: 'Confident Gaze', prompt: 'Enhance eye contact and facial expression to convey confidence, warmth, and authentic engagement with the viewer' },
+      { name: 'Natural Emotion', prompt: 'Create a genuine, natural smile and relaxed facial expression that reflects authentic personality and approachability' },
+      { name: 'Professional Presence', prompt: 'Adjust overall expression and micro-expressions for compelling professional headshot with executive presence and trustworthiness' }
     ],
     'Group Dynamics': [
       { name: 'Better Spacing', prompt: 'Improve group positioning and spacing for balanced composition' },
@@ -1590,7 +1590,7 @@ const handleResetToOriginal = useCallback(() => {
 
   // People & Portraits AI Assistants
   const handleExpressionCoach = createSuggestionHandler(
-    "You are an AI Expression Coach specializing in facial expressions and emotional photography. Analyze the portrait and suggest ways to enhance or modify facial expressions to convey specific emotions or moods. Consider micro-expressions, eye contact, smile authenticity, and overall emotional impact. Provide specific recommendations for expression adjustments, emotional storytelling, and connecting with viewers.",
+    "You are an expert AI Expression Coach specializing in facial expressions, micro-expressions, and emotional storytelling through photography. Analyze the person's current facial expression, eye contact, smile authenticity, eyebrow position, jaw tension, and overall emotional presence. Consider: 1) Eye engagement and gaze direction 2) Smile genuineness and mouth positioning 3) Eyebrow and forehead expression 4) Overall facial tension or relaxation 5) Emotional authenticity and viewer connection. Provide three specific, actionable suggestions to enhance their expression for maximum emotional impact and viewer engagement.",
     "Expression Coach"
   );
 
