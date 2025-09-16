@@ -1416,11 +1416,7 @@ const handleResetToOriginal = useCallback(() => {
   );
 
   const handleGetFashionAdvice = createSuggestionHandler(
-<<<<<<< HEAD
-    "You are an AI Fashion Stylist for photography/editorial. Analyze the clothing on every person in the image and propose exactly 3 distinct looks. Each suggestion MUST be a precise, actionable prompt that specifies: (1) silhouette and key garments, (2) fabric and texture realism, (3) cohesive color palette, (4) footwear and 1–2 accessories, (5) fit notes (hemlines, sleeve length, drape, plausible tension/fold points), and (6) how it integrates with the subject's current pose and lighting for a believable result. Avoid generic wording. Tailor each suggestion to the visible subject(s) and their proportions. IMPORTANT: Do not change any facial features, expression, face shape, skin tone, eyes, nose, mouth, birthmarks, scars, or hairstyle of any person in the image. Apply this to every face present. Keep all aspects of each face exactly as in the original image.",
-=======
     "You are an AI Fashion Stylist. Analyze the clothing and style of any person in the image. Suggest three different outfits or style changes. Each suggestion should be a clear, actionable prompt to alter their fashion (e.g., 'Change the t-shirt to a formal tuxedo', 'Give them a futuristic cyberpunk jacket'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
->>>>>>> origin/master
     "Fashion Stylist"
   );
 

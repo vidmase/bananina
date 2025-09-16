@@ -80,11 +80,7 @@ const ImageEditor: React.FC = () => {
   const [showPinModal, setShowPinModal] = useState<boolean>(false);
   const [pinInput, setPinInput] = useState<string>('');
   const [pinError, setPinError] = useState<string>('');
-<<<<<<< HEAD
 
-=======
-  
->>>>>>> origin/master
   const [showImagePreview, setShowImagePreview] = useState<boolean>(false);
   const [previewImageSrc, setPreviewImageSrc] = useState<string>('');
   const [zoomLevel, setZoomLevel] = useState<number>(1);
@@ -99,10 +95,9 @@ const ImageEditor: React.FC = () => {
   const [favorites, setFavorites] = useState<any[]>([]);
   const recognitionRef = useRef<any | null>(null);
 
-<<<<<<< HEAD
   // Constraint to preserve facial features for People & Portraits category
   const FACIAL_PRESERVATION_CONSTRAINT =
-    'Strict facial preservation for every person in the image without exceptions: Do not modify, alter, synthesize, or stylize any part of any face. Preserve identity and keep 1:1 consistency of facial features (shape, proportions, expression, skin tone, eyes, nose, mouth, ears, facial hair, hairline and hairstyle, birthmarks, moles, freckles, scars). Maintain original face geometry, lighting, micro-texture, and color. If any operation would alter a face, reject that change and keep the face exactly as in the source image. All edits, masks, and style changes must strictly exclude all faces.'
+    'Do not change any facial features, expression, face shape, skin tone, eyes, nose, mouth, birthmarks, scars, or hairstyle. Keep all aspects of the face exactly as in the original image';
 
   // List of categories considered under People & Portraits
   const PEOPLE_CATEGORIES = useMemo(
@@ -122,8 +117,6 @@ const ImageEditor: React.FC = () => {
     []
   );
 
-=======
->>>>>>> origin/master
   const validatePin = (inputPin: string): boolean => {
     return inputPin === '1256';
   };
@@ -354,16 +347,12 @@ const ImageEditor: React.FC = () => {
     setSuggestions(null);
 
     try {
-<<<<<<< HEAD
       // If current feature is People & Portraits, enforce facial preservation constraint
       const isPeople = PEOPLE_CATEGORIES.has(activeSuggestionCategory);
       const promptToUse = isPeople && !currentPrompt.includes(FACIAL_PRESERVATION_CONSTRAINT)
         ? `${currentPrompt}. ${FACIAL_PRESERVATION_CONSTRAINT}`
         : currentPrompt;
       const newImage = await generateImage(promptToUse, image);
-=======
-      const newImage = await generateImage(currentPrompt, image);
->>>>>>> origin/master
       setImage(newImage);
       updateHistory(newImage);
     } catch (err) {
@@ -372,18 +361,13 @@ const ImageEditor: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-<<<<<<< HEAD
   }, [image, generateImage, updateHistory, activeSuggestionCategory]);
-=======
-  }, [image, generateImage, updateHistory]);
->>>>>>> origin/master
 
   const handleEnhancePrompt = useCallback(async () => {
     if (!prompt) return;
     setIsEnhancingPrompt(true);
     try {
         const enhancedPrompt = await deepseekClient.enhancePrompt(prompt);
-<<<<<<< HEAD
         const isPeople = PEOPLE_CATEGORIES.has(activeSuggestionCategory);
         const finalEnhanced = isPeople && !enhancedPrompt.includes(FACIAL_PRESERVATION_CONSTRAINT)
           ? `${enhancedPrompt}. ${FACIAL_PRESERVATION_CONSTRAINT}`
@@ -401,17 +385,6 @@ const ImageEditor: React.FC = () => {
         setIsEnhancingPrompt(false);
     }
   }, [prompt, activeSuggestionCategory]);
-=======
-        setPrompt(enhancedPrompt);
-    } catch (err) {
-        console.error("Error enhancing prompt:", err);
-        const fallbackPrompt = `${prompt}, professional photography, high quality, detailed, cinematic lighting, sharp focus`;
-        setPrompt(fallbackPrompt);
-    } finally {
-        setIsEnhancingPrompt(false);
-    }
-  }, [prompt]);
->>>>>>> origin/master
 
   const toggleListening = () => {
       if (isListening) {
@@ -447,36 +420,11 @@ const ImageEditor: React.FC = () => {
 
     try {
       const aiSuggestions = await deepseekClient.generateSuggestions(systemInstruction, "the uploaded image");
-<<<<<<< HEAD
       // If this feature is a People & Portraits category, append the facial preservation constraint
       const isPeople = PEOPLE_CATEGORIES.has(featureName);
-
-      // Heuristic to detect overly generic Fashion Stylist suggestions and replace with curated fallbacks
-      const isFashion = featureName === 'Fashion Stylist';
-      const looksSpecific = (text: string) => {
-        const lower = text.toLowerCase();
-        const requiredTerms = ['silhouette', 'fabric', 'texture', 'palette', 'footwear', 'accessor', 'fit', 'drape'];
-        const present = requiredTerms.filter(t => lower.includes(t)).length;
-        return lower.length > 120 && present >= 3; // require some length and at least 3 key aspects
-      };
-
-      let effectiveSuggestions = aiSuggestions;
-      if (isFashion) {
-        const specificCount = aiSuggestions.filter(s => looksSpecific(s.prompt)).length;
-        if (specificCount < 2) {
-          // Not specific enough: fall back to curated Fashion Stylist prompts
-          effectiveSuggestions = getPredefinedSuggestions('Fashion Stylist');
-        }
-      }
-
-      const suggestionsWithCategory = effectiveSuggestions.map((s: {name: string, prompt: string}) => ({
-        ...s,
-        prompt: isPeople ? `${s.prompt}. ${FACIAL_PRESERVATION_CONSTRAINT}` : s.prompt,
-=======
-      
       const suggestionsWithCategory = aiSuggestions.map((s: {name: string, prompt: string}) => ({
         ...s,
->>>>>>> origin/master
+        prompt: isPeople ? `${s.prompt}. ${FACIAL_PRESERVATION_CONSTRAINT}` : s.prompt,
         category: featureName,
       }));
       setSuggestions(suggestionsWithCategory);
@@ -484,15 +432,10 @@ const ImageEditor: React.FC = () => {
     } catch (err) {
       console.error(`${featureName} Error:`, err);
       const fallbackSuggestions = getPredefinedSuggestions(featureName);
-<<<<<<< HEAD
       const isPeople = PEOPLE_CATEGORIES.has(featureName);
       const suggestionsWithCategory = fallbackSuggestions.map((s: {name: string, prompt: string}) => ({
         ...s,
         prompt: isPeople ? `${s.prompt}. ${FACIAL_PRESERVATION_CONSTRAINT}` : s.prompt,
-=======
-      const suggestionsWithCategory = fallbackSuggestions.map((s: {name: string, prompt: string}) => ({
-        ...s,
->>>>>>> origin/master
         category: featureName,
       }));
       setSuggestions(suggestionsWithCategory);
@@ -501,7 +444,6 @@ const ImageEditor: React.FC = () => {
     }
   }, [image]);
 
-<<<<<<< HEAD
   // Re-introduced helper with proper wrapping after accidental unscoped literal
   const getPredefinedSuggestions = (category: string): { name: string; prompt: string }[] => {
     const suggestions: { [key: string]: { name: string; prompt: string }[] } = {
@@ -553,11 +495,6 @@ const ImageEditor: React.FC = () => {
         { name: 'Sunset Brilliance', prompt: 'Capture the full range of colors and light in a sunset by blending exposures to avoid blown-out highlights and crushed shadows.' },
       ],
       // People & Portraits fallbacks (will also have constraint appended below)
-      'Fashion Stylist': [
-        { name: 'Tailored Formal', prompt: 'Replace current outfit with a sharp tailored set (single-breasted blazer with structured shoulders, slim trousers, crisp shirt). Use a cohesive neutral palette (charcoal/black/ivory), matte fabrics with subtle texture, and natural drape. Preserve body proportions, sleeve length at wrist, trouser break light at shoe, and realistic garment shadows and folds.' },
-        { name: 'Elevated Streetwear', prompt: 'Style a modern streetwear look: oversized hoodie layered under a lightweight bomber, tapered cargo pants, and clean low-profile sneakers. Keep a muted palette (sage/stone/black), add minimal accessories (cap/watch), and ensure fabric thickness and stitching detail are realistic. Maintain pose alignment and plausible garment tension points at elbows, knees, and waist.' },
-        { name: 'Minimalist Monochrome', prompt: 'Create a minimalist monochrome outfit in deep navy: relaxed knit top, straight-leg trousers, and sleek leather loafers. Balance silhouettes (boxy top with straight bottoms), ensure correct hemlines, and realistic fabric sheen for knit vs. leather. Add a subtle belt and keep overall styling clean and editorial.' },
-      ],
       'Expression Coach': [
         { name: 'Confident Expression', prompt: 'Enhance facial expression to show confidence and engagement' },
         { name: 'Natural Smile', prompt: 'Create a more natural, authentic smile and eye expression' },
@@ -619,86 +556,6 @@ const ImageEditor: React.FC = () => {
     if (!isPeople) return base;
     return base.map(s => ({ ...s, prompt: `${s.prompt}. ${FACIAL_PRESERVATION_CONSTRAINT}` }));
   };
-=======
-  const handlePreview = useCallback(async (previewPrompt: string) => {
-    if (!image) return;
-    setError(null);
-    setIsPreviewLoading(previewPrompt);
-
-    try {
-        if (!imageBeforePreview) {
-            setImageBeforePreview(image);
-        }
-        
-        const baseImageForPreview = imageBeforePreview || image;
-        const newImage = await generateImage(previewPrompt, baseImageForPreview);
-        setImage(newImage);
-    } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to generate preview.");
-        if (imageBeforePreview) {
-          setImage(imageBeforePreview);
-        }
-    } finally {
-        setIsPreviewLoading(null);
-    }
-}, [image, imageBeforePreview, generateImage]);
-
-const getPredefinedSuggestions = (category: string): {name: string, prompt: string}[] => {
-  const suggestions: {[key: string]: {name: string, prompt: string}[]} = {
-    'Creative Concepts': [
-      { name: 'Artistic Style', prompt: 'Transform into an oil painting with visible brushstrokes and rich textures' },
-      { name: 'Fantasy Theme', prompt: 'Add magical elements like glowing particles and ethereal lighting' },
-      { name: 'Futuristic Look', prompt: 'Apply a cyberpunk aesthetic with neon colors and digital effects' }
-    ],
-    'Technical Advice': [
-      { name: 'Enhance Lighting', prompt: 'Improve the lighting with professional studio setup and balanced exposure' },
-      { name: 'Sharpen Details', prompt: 'Increase sharpness and clarity while reducing noise' },
-      { name: 'Color Correction', prompt: 'Adjust color balance, saturation, and contrast for professional look' }
-    ],
-    'Expression Coach': [
-        { name: 'Confident Pose', prompt: 'Adjust posture to be more upright and open, with shoulders back and chin slightly lifted, for a confident and powerful look.' },
-        { name: 'Engaging Expression', prompt: 'Enhance the expression by adding a subtle, genuine smile that reaches the eyes to create a more engaging and approachable feel.' },
-        { name: 'Dynamic Angle', prompt: 'Introduce a slight head tilt and angle the body away from the camera to create a more dynamic and flattering composition.' },
-    ],
-    'Color Grading': [
-        { name: 'Cinematic Teal & Orange', prompt: 'Apply a cinematic teal and orange color grade to create a modern, high-contrast look.' },
-        { name: 'Vintage Film', prompt: 'Give the image a warm, faded vintage film look with muted colors and soft grain.' },
-        { name: 'Dramatic Monochrome', prompt: 'Convert to a high-contrast black and white image with deep blacks and bright highlights for a dramatic feel.' },
-    ],
-    'Composition': [
-        { name: 'Rule of Thirds', prompt: 'Crop the image to place the main subject on one of the intersecting lines of a 3x3 grid to create a more balanced composition.' },
-        { name: 'Leading Lines', prompt: 'Emphasize existing lines in the image to guide the viewer\'s eye towards the main subject.' },
-        { name: 'Add Framing', prompt: 'Introduce a natural frame within the image, like a doorway or window, to add depth and draw attention to the subject.' },
-    ],
-    'Lighting': [
-        { name: 'Golden Hour Glow', prompt: 'Simulate the warm, soft light of the golden hour to create a flattering and magical atmosphere.' },
-        { name: 'Dramatic Rembrandt', prompt: 'Apply Rembrandt lighting with a strong key light and a triangular highlight on the cheek to create a dramatic, moody portrait.' },
-        { name: 'Soft Backlight', prompt: 'Add a soft backlight to separate the subject from the background and create a gentle, ethereal halo effect.' },
-    ],
-    'Depth Master': [
-        { name: 'Shallow Depth of Field', prompt: 'Create a very shallow depth of field to blur the background and make the subject pop.' },
-        { name: 'Deep Depth of Field', prompt: 'Ensure the entire scene from foreground to background is in sharp focus to capture all the details of a landscape.' },
-        { name: 'Cinematic Bokeh', prompt: 'Enhance the background blur with beautiful, cinematic bokeh for a professional portrait look.' },
-    ],
-    'Focus Stacking': [
-        { name: 'Macro Sharpness', prompt: 'Combine multiple macro shots to ensure every detail of a tiny subject is perfectly sharp.' },
-        { name: 'Landscape Clarity', prompt: 'Merge several landscape photos to create an image where everything from the closest flower to the distant mountains is in focus.' },
-        { name: 'Product Photography', prompt: 'Stack focus to create a commercial-quality product shot where the entire object is sharp and detailed.' },
-    ],
-    'Long Exposure': [
-        { name: 'Silky Water', prompt: 'Use a long exposure to smooth out the surface of water, creating a silky, ethereal effect.' },
-        { name: 'Cloud Streaks', prompt: 'Capture the movement of clouds with a long exposure to create dramatic streaks across the sky.' },
-        { name: 'Light Trails', prompt: 'Create dynamic light trails from moving vehicles to add energy and excitement to a city scene at night.' },
-    ],
-    'HDR Blending': [
-        { name: 'Balanced Landscape', prompt: 'Blend multiple exposures to create a landscape with a perfectly exposed sky and foreground.' },
-        { name: 'Interior Real Estate', prompt: 'Create a bright, evenly lit interior shot by blending exposures to show both the inside and the view outside the window.' },
-        { name: 'Sunset Brilliance', prompt: 'Capture the full range of colors and light in a sunset by blending exposures to avoid blown-out highlights and crushed shadows.' },
-    ],
-  };
-  return suggestions[category] || [];
-};
->>>>>>> origin/master
 
   const handleMacroPrecision = createSuggestionHandler(
     "You are an AI Macro Photography Specialist focusing on extreme close-up photography. Analyze the image and suggest macro techniques for enhancing detail, sharpness, and lighting on small subjects. Consider magnification, focus precision, and lighting control for tiny worlds. Provide specific recommendations for achieving stunning macro photography results.",
