@@ -325,23 +325,27 @@ class KieClient {
     // For image editing, we need to provide the base image and optionally reference image
     if (baseImage) {
       try {
-        DebugLogger.log('GENERATE_IMAGE', 'Processing base image for editing');
-        
-        // kie.ai API expects public HTTP URLs, not data URLs
-        // We need to upload the image to get a public URL
-        const imageUrl = await this.uploadImageToPublicUrl(baseImage);
-        DebugLogger.log('GENERATE_IMAGE', `Using public base image URL: ${imageUrl}`);
-        requestData.input.image_urls = [imageUrl];
-        
-        // If reference image is provided, add it as a second image URL
+        // If reference image is provided, place REFERENCE FIRST, BASE SECOND
         if (referenceImage) {
-          DebugLogger.log('GENERATE_IMAGE', 'Processing reference image');
+          DebugLogger.log('GENERATE_IMAGE', 'Processing reference and base images');
+
           const refImageUrl = await this.uploadImageToPublicUrl(referenceImage);
-          DebugLogger.log('GENERATE_IMAGE', `Using public reference image URL: ${refImageUrl}`);
-          requestData.input.image_urls.push(refImageUrl);
-          
-          // Update prompt to specifically reference both images
-          requestData.input.prompt = `Edit the first image using the second image as a reference: ${prompt}. Apply the exact style, colors, patterns, and design from the reference image to the main subject. Ensure realistic fit and lighting.`;
+          const baseImageUrl = await this.uploadImageToPublicUrl(baseImage);
+
+          // Order matters for some providers; use [reference, base]
+          requestData.input.image_urls = [refImageUrl, baseImageUrl];
+          DebugLogger.log('GENERATE_IMAGE', 'Image URLs order set to [reference, base]', requestData.input.image_urls);
+
+          // Strong instruction: edit BASE (second) using REFERENCE (first). Preserve face; never output reference as final image.
+          requestData.input.prompt = `Edit the second image using the first image as a reference: ${prompt}. Apply the exact style, colors, patterns, textures, and design details from the reference image to the person in the base photo. Ensure realistic fit and lighting. The output MUST be the edited base image with the clothing transferred; DO NOT output or replace the scene with the reference image. Do not change any facial features, expression, face shape, skin tone, eyes, nose, mouth, birthmarks, scars, or hairstyle. Keep all aspects of the face exactly as in the original image.`;
+        } else {
+          DebugLogger.log('GENERATE_IMAGE', 'Processing base image only for editing');
+
+          // No reference image; just edit the base
+          const baseImageUrl = await this.uploadImageToPublicUrl(baseImage);
+          requestData.input.image_urls = [baseImageUrl];
+          DebugLogger.log('GENERATE_IMAGE', `Using public base image URL: ${baseImageUrl}`);
+          requestData.input.prompt = `Edit this image: ${prompt}. Keep the original composition and only apply the requested changes.`;
         }
       } catch (processError) {
         DebugLogger.error('GENERATE_IMAGE', 'Failed to process images', processError);

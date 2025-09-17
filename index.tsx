@@ -57,6 +57,9 @@ import { createRoot } from 'react-dom/client';
 import { kieClient } from './kieClient';
 import { deepseekClient } from './deepseekClient';
 import { nanoBananaClient } from './nanoBananaClient';
+import { initializeHaptics, haptics } from './utils/haptics';
+import { geminiClient } from './geminiClient';
+import type { CompositionAnalysis } from './geminiClient';
 import MaskEditor from './MaskEditor';
 
 // --- ICONS ---
@@ -494,6 +497,10 @@ const App: React.FC = () => {
   const [view, setView] = useState<'upload' | 'editor'>('upload');
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState<boolean>(false);
+  // Composition Coach state
+  const [compositionAnalysis, setCompositionAnalysis] = useState<CompositionAnalysis | null>(null);
+  const [isAnalyzingComposition, setIsAnalyzingComposition] = useState<boolean>(false);
+  const [compositionError, setCompositionError] = useState<string | null>(null);
   const [imageBeforePreview, setImageBeforePreview] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState<string | null>(null);
   const [activeSuggestionCategory, setActiveSuggestionCategory] = useState<string>('');
@@ -684,6 +691,11 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Initialize haptic feedback
+  useEffect(() => {
+    initializeHaptics();
+  }, []);
+
   // ---- Undo/Redo Logic ----
   const updateHistory = useCallback((newImage: string) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -764,7 +776,7 @@ const App: React.FC = () => {
 
       // Add specific editing context to ensure the API modifies the uploaded image
       if (referenceImage) {
-        enhancedPrompt = `Use the reference image as a style guide and apply it to the main image: ${currentPrompt}. Match the exact colors, patterns, textures, and design details from the reference image. Ensure the reference item fits naturally on the person while preserving their pose and lighting.`;
+        enhancedPrompt = `Use the reference image as a style guide and apply it to the main image: ${currentPrompt}. Match the exact colors, patterns, textures, and design details from the reference image. Ensure the reference item fits naturally on the person while preserving their pose and lighting. The output MUST be the edited base image with the clothing transferred; DO NOT output or replace the scene with the reference image. Do not change any facial features, expression, face shape, skin tone, eyes, nose, mouth, birthmarks, scars, or hairstyle. Keep all aspects of the face exactly as in the original image.`;
       } else if (imageReference) {
         // Manual Image Reference flow: use the user's reference-specific prompt
         const refInstruction = imageReferencePrompt?.trim() ? imageReferencePrompt.trim() : currentPrompt;
@@ -816,6 +828,46 @@ const App: React.FC = () => {
         setIsEnhancingPrompt(false);
     }
   }, [prompt]);
+
+  // ---- Composition Coach ----
+  const handleAnalyzeComposition = useCallback(async () => {
+    if (!image) return;
+    setIsAnalyzingComposition(true);
+    setCompositionError(null);
+    setCompositionAnalysis(null);
+    try {
+      const analysis = await geminiClient.analyzeComposition(image);
+      setCompositionAnalysis(analysis);
+      setActiveSuggestionCategory('Composition Analysis');
+      const mapped = analysis.suggestions.map((s) => ({ name: s.title, prompt: s.relatedPrompt }));
+      setSuggestions(mapped);
+    } catch (err) {
+      console.error('Composition analysis error:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to analyze composition.';
+
+      // Fallback to DeepSeek text-only suggestions
+      try {
+        const PORTRAIT_CONSTRAINT = "Do not change any facial features, expression, face shape, skin tone, eyes, nose, mouth, birthmarks, scars, or hairstyle. Keep all aspects of the face exactly as in the original image.";
+        const systemInstruction = `You are an expert photography critic. Provide exactly three brief, actionable suggestions that improve composition, lighting, or color of a given image. Each suggestion should be a concise prompt that a user can run next to improve their image. If this is a people/portraits photo, append this exact constraint to each prompt: "${PORTRAIT_CONSTRAINT}".`;
+        const fallbackSuggestions = await deepseekClient.generateSuggestions(systemInstruction, 'the uploaded image');
+        setActiveSuggestionCategory('Composition Analysis (Fallback)');
+        setSuggestions(fallbackSuggestions);
+        // Provide a simple summary placeholder to inform the user
+        setCompositionAnalysis({
+          summary: 'Displaying text-based suggestions as a fallback. For full visual analysis, please set your Gemini API key.',
+          suggestions: fallbackSuggestions.map(s => ({ title: s.name, advice: s.prompt, relatedPrompt: s.prompt })),
+          tags: ['composition', 'lighting', 'color'],
+          confidence: 0.4,
+        });
+      } catch (fallbackErr) {
+        console.error('Fallback (DeepSeek) analysis failed:', fallbackErr);
+        // Only set the error if the fallback also fails
+        setCompositionError(msg);
+      }
+    } finally {
+      setIsAnalyzingComposition(false);
+    }
+  }, [image]);
 
   // ---- Voice Prompting ----
   const toggleListening = () => {
@@ -1826,7 +1878,7 @@ const handleResetToOriginal = useCallback(() => {
       }
       
       // Generate universal automatic prompt for reference image application
-      const autoPrompt = "Replace my current clothing with the clothing in the reference image, ensuring proper fit, realistic shadows, and matching the lighting conditions of my photo";
+      const autoPrompt = "Replace my current clothing with the clothing in the reference image, ensuring proper fit, realistic shadows, and matching the lighting conditions of my photo. The output MUST be the edited base image with the clothing transferred; DO NOT output or replace the scene with the reference image. Do not change any facial features, expression, face shape, skin tone, eyes, nose, mouth, birthmarks, scars, or hairstyle. Keep all aspects of the face exactly as in the original image.";
       
       console.log('Using auto prompt:', autoPrompt);
       console.log('Base image available:', !!image);
@@ -2057,13 +2109,28 @@ const handleResetToOriginal = useCallback(() => {
       <header className="app-header">
         <h1 className="app-title">Imagina</h1>
         <div className="header-controls">
-          <button className="btn btn-icon" onClick={handleUndo} disabled={historyIndex <= 0} title="Undo">
+          <button 
+            className="btn btn-icon haptic-button" 
+            onClick={() => { haptics.buttonPress(); handleUndo(); }} 
+            disabled={historyIndex <= 0} 
+            title="Undo"
+          >
             <UndoIcon />
           </button>
-          <button className="btn btn-icon" onClick={handleRedo} disabled={historyIndex >= history.length - 1} title="Redo">
+          <button 
+            className="btn btn-icon haptic-button" 
+            onClick={() => { haptics.buttonPress(); handleRedo(); }} 
+            disabled={historyIndex >= history.length - 1} 
+            title="Redo"
+          >
             <RedoIcon />
           </button>
-          <button className="btn btn-icon" onClick={handleDownloadImage} disabled={!image} title="Download Image">
+          <button 
+            className="btn btn-icon haptic-button" 
+            onClick={() => { haptics.success(); handleDownloadImage(); }} 
+            disabled={!image} 
+            title="Download Image"
+          >
             <DownloadIcon />
           </button>
           <input type="file" id="new-file-upload" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
@@ -2074,11 +2141,36 @@ const handleResetToOriginal = useCallback(() => {
       </header>
       <div className="app-layout">
         <nav className="main-nav">
-            <button onClick={() => setActiveTab('edit')} className={`tab-button ${activeTab === 'edit' ? 'active' : ''}`}><EditIcon /><span>Edit</span></button>
-            <button onClick={() => setActiveTab('layers')} className={`tab-button ${activeTab === 'layers' ? 'active' : ''}`}><LayersIcon /><span>Layers</span></button>
-            <button onClick={() => setActiveTab('effects')} className={`tab-button ${activeTab === 'effects' ? 'active' : ''}`}><EffectsIcon /><span>Effects</span></button>
-            <button onClick={() => setActiveTab('assistant')} className={`tab-button ${activeTab === 'assistant' ? 'active' : ''}`}><AssistantIcon /><span>Assistant</span></button>
-            <button onClick={() => setActiveTab('favorites')} className={`tab-button ${activeTab === 'favorites' ? 'active' : ''}`}><StarIcon filled={activeTab === 'favorites'} /><span>Favorites</span></button>
+            <button 
+              onClick={() => { haptics.select(); setActiveTab('edit'); }} 
+              className={`tab-button haptic-select ${activeTab === 'edit' ? 'active' : ''}`}
+            >
+              <EditIcon /><span>Edit</span>
+            </button>
+            <button 
+              onClick={() => { haptics.select(); setActiveTab('layers'); }} 
+              className={`tab-button haptic-select ${activeTab === 'layers' ? 'active' : ''}`}
+            >
+              <LayersIcon /><span>Layers</span>
+            </button>
+            <button 
+              onClick={() => { haptics.select(); setActiveTab('effects'); }} 
+              className={`tab-button haptic-select ${activeTab === 'effects' ? 'active' : ''}`}
+            >
+              <EffectsIcon /><span>Effects</span>
+            </button>
+            <button 
+              onClick={() => { haptics.select(); setActiveTab('assistant'); }} 
+              className={`tab-button haptic-select ${activeTab === 'assistant' ? 'active' : ''}`}
+            >
+              <AssistantIcon /><span>Assistant</span>
+            </button>
+            <button 
+              onClick={() => { haptics.select(); setActiveTab('favorites'); }} 
+              className={`tab-button haptic-select ${activeTab === 'favorites' ? 'active' : ''}`}
+            >
+              <StarIcon filled={activeTab === 'favorites'} /><span>Favorites</span>
+            </button>
         </nav>
         <aside className="control-panel">
           <div className="tab-content">
@@ -2111,7 +2203,11 @@ const handleResetToOriginal = useCallback(() => {
                     </button>
                   </div>
                 </div>
-                <button onClick={() => handleSubmit(prompt)} disabled={isLoading || !prompt || !image || !!suggestions} className="btn btn-primary">
+                <button 
+                  onClick={() => { haptics.confirm(); handleSubmit(prompt); }} 
+                  disabled={isLoading || !prompt || !image || !!suggestions} 
+                  className="btn btn-primary haptic-button"
+                >
                   {isLoading ? 'Generating...' : 'Apply Edit'}
                 </button>
                  {error && !suggestions && <p className="error-message" role="alert">{error}</p>}
@@ -2215,6 +2311,16 @@ const handleResetToOriginal = useCallback(() => {
             {activeTab === 'assistant' && (
               <div className="control-group">
                  <h2>AI Assistant</h2>
+                 <div className="assistant-actions" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                   <button 
+                     className="btn btn-primary haptic-button" 
+                     onClick={() => { haptics.confirm(); handleAnalyzeComposition(); }} 
+                     disabled={!image || isAnalyzingComposition}
+                   >
+                     {isAnalyzingComposition ? 'Analyzing…' : 'Analyze Image'}
+                   </button>
+                   {compositionError && !compositionAnalysis && <span className="error-message" role="alert" style={{ marginLeft: '0.5rem' }}>{compositionError}</span>}
+                 </div>
                   <div className="assistant-categories">
                     <div className="assistant-category">
                         <h3>Photography Essentials</h3>
@@ -2864,30 +2970,51 @@ const handleResetToOriginal = useCallback(() => {
                   <div className="skeleton-card"></div>
                 </div>
               ) : (
-                suggestions && suggestions.map((s, i) => (
-                  <div key={i} className="suggestion-card">
-                    <div className="suggestion-card-content">
-                      <h3>{s.name}</h3>
-                      <p>{s.prompt}</p>
+                <>
+                  {compositionAnalysis && (
+                    <div className="analysis-summary-card">
+                      <div className="analysis-summary-header">
+                        <h3>Composition Summary</h3>
+                        {typeof compositionAnalysis.confidence === 'number' && (
+                          <span className="confidence-pill">{Math.round((compositionAnalysis.confidence || 0) * 100)}% confidence</span>
+                        )}
+                      </div>
+                      <p className="analysis-summary-text">{compositionAnalysis.summary}</p>
+                      {compositionAnalysis.tags && compositionAnalysis.tags.length > 0 && (
+                        <div className="analysis-tags">
+                          {compositionAnalysis.tags.map((t, i) => (
+                            <span key={i} className="tag-chip">{t}</span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className="suggestion-card-actions">
-                      <button
-                        className="btn-favorite"
-                        onClick={() => toggleFavorite(s)}
-                        title={isFavorite(s) ? 'Remove from Favorites' : 'Add to Favorites'}
-                      >
-                        <StarIcon filled={isFavorite(s)} />
-                      </button>
-                      <button 
-                        className="btn btn-secondary btn-preview"
-                        onClick={() => handlePreview(s.prompt)}
-                        disabled={!!isPreviewLoading}
-                      >
-                        {isPreviewLoading === s.prompt ? <div className="spinner-small-light"></div> : 'Preview'}
-                      </button>
+                  )}
+
+                  {suggestions && suggestions.map((s, i) => (
+                    <div key={i} className="suggestion-card">
+                      <div className="suggestion-card-content">
+                        <h3>{s.name}</h3>
+                        <p>{s.prompt}</p>
+                      </div>
+                      <div className="suggestion-card-actions">
+                        <button
+                          className="btn-favorite"
+                          onClick={() => toggleFavorite(s)}
+                          title={isFavorite(s) ? 'Remove from Favorites' : 'Add to Favorites'}
+                        >
+                          <StarIcon filled={isFavorite(s)} />
+                        </button>
+                        <button 
+                          className="btn btn-secondary btn-preview"
+                          onClick={() => handlePreview(s.prompt)}
+                          disabled={!!isPreviewLoading}
+                        >
+                          {isPreviewLoading === s.prompt ? <div className="spinner-small-light"></div> : 'Preview'}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </>
               )}
             </div>
             <footer className="suggestions-panel-footer">
