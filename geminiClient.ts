@@ -3,12 +3,7 @@
  * Sends an image to Gemini for expert composition critique and returns structured JSON.
  */
 
-// Type declaration for Vite environment variables
-declare global {
-  interface ImportMetaEnv {
-    readonly VITE_GEMINI_API_KEY?: string;
-  }
-}
+// Type declarations are now in vite-env.d.ts
 
 const GEMINI_API_KEY = (import.meta.env?.VITE_GEMINI_API_KEY as string) 
   || (typeof localStorage !== 'undefined' ? localStorage.getItem('GEMINI_API_KEY') || '' : '') 
@@ -86,6 +81,10 @@ Important requirements:
 - Do NOT hallucinate content that cannot be deduced from the image context.
 `;
 
+const SMART_SUGGESTION_PROMPT = `Based on the provided image, generate a creative suggestion to improve it, focusing on the specified category. Analyze what you see in the image and provide context-aware recommendations.
+
+Return a single JSON object with two keys: "name" (a short, catchy title, 2-4 words) and "prompt" (a concise, actionable prompt for an AI image editor). Do not add any extra text, quotes, or markdown formatting. Ensure each suggestion is unique and specifically tailored to what you observe in the image.`;
+
 class GeminiClient {
   async analyzeComposition(imageDataUrl: string): Promise<CompositionAnalysis> {
     if (!GEMINI_API_KEY) {
@@ -155,6 +154,69 @@ class GeminiClient {
     };
 
     return result;
+  }
+
+  async generateSmartSuggestion(imageDataUrl: string, category: string, description: string): Promise<{ name: string; prompt: string }> {
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not set. Please set it in your environment or localStorage.');
+    }
+
+    const inline = dataUrlToInlineData(imageDataUrl);
+    const url = `${GEMINI_API_BASE}/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+
+    const contextualPrompt = `${SMART_SUGGESTION_PROMPT}
+
+Category: "${category}: ${description}"
+
+Analyze the image content and generate a suggestion that is specifically relevant to what you see. Consider the subject matter, composition, lighting, colors, and style when crafting your recommendation.`;
+
+    const body = {
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: contextualPrompt },
+            { inlineData: inline },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 200,
+      },
+    };
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text();
+      throw new Error(`Gemini API error: ${resp.status} ${txt}`);
+    }
+
+    const json = await resp.json();
+    const text = json?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text || '').join('\n');
+
+    try {
+      const parsed = JSON.parse(text.trim());
+      if (parsed && parsed.name && parsed.prompt) {
+        return {
+          name: String(parsed.name).slice(0, 50),
+          prompt: String(parsed.prompt).slice(0, 500),
+        };
+      }
+    } catch (e) {
+      console.warn('Failed to parse smart suggestion JSON:', e);
+    }
+
+    // Fallback suggestion
+    return {
+      name: 'Enhance Image',
+      prompt: `Improve the image focusing on ${category.toLowerCase()}. Analyze the current composition and apply appropriate enhancements while maintaining the original style and subject matter.`,
+    };
   }
 }
 

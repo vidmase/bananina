@@ -121,7 +121,7 @@ export const initializeHaptics = (): void => {
   
   document.addEventListener('mouseenter', (e) => {
     const target = e.target as HTMLElement;
-    if (target.classList.contains(hapticClasses.hover)) {
+    if (target && target.classList && target.classList.contains(hapticClasses.hover)) {
       haptics.buttonHover();
     }
   }, true);

@@ -4,7 +4,7 @@
  */
 
 const DEEPSEEK_API_BASE = 'https://api.deepseek.com/v1';
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY as string;
+const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY as string;
 
 export interface DeepSeekMessage {
   role: 'system' | 'user' | 'assistant';
@@ -79,11 +79,13 @@ class DeepSeekClient {
         role: 'system',
         content: `${systemInstruction}
 
-Return your response as a JSON array with exactly 3 suggestions. Each suggestion should have:
+IMPORTANT: Return ONLY a valid JSON array with exactly 3 suggestions. Do not include any markdown, explanations, or additional text.
+
+Each suggestion must have:
 - "name": A short, catchy title (max 20 characters)
 - "prompt": A detailed, actionable prompt for image editing
 
-Format: [{"name": "Title", "prompt": "Detailed prompt..."}, ...]`
+Required format: [{"name": "Title", "prompt": "Detailed prompt..."}, {"name": "Title2", "prompt": "Detailed prompt2..."}, {"name": "Title3", "prompt": "Detailed prompt3..."}]`
       },
       {
         role: 'user',
@@ -107,7 +109,9 @@ Format: [{"name": "Title", "prompt": "Detailed prompt..."}, ...]`
       });
 
       if (!response.ok) {
-        throw new Error(`DeepSeek API error: ${response.status}`);
+        const errorBody = await response.text();
+        console.error('DeepSeek API Error Body:', errorBody);
+        throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
       }
 
       const result: DeepSeekResponse = await response.json();
@@ -117,14 +121,39 @@ Format: [{"name": "Title", "prompt": "Detailed prompt..."}, ...]`
         throw new Error('No response from DeepSeek API');
       }
 
-      // Try to parse JSON response
+      // Debug: Log the raw response to understand the format
+      console.log('DeepSeek raw response:', content);
+
+      // Try to parse JSON response with improved extraction
       try {
-        const suggestions = JSON.parse(content);
+        // First try direct parsing
+        let suggestions = JSON.parse(content);
         if (Array.isArray(suggestions) && suggestions.length > 0) {
-          return suggestions.slice(0, 3); // Ensure max 3 suggestions
+          return suggestions.slice(0, 3);
         }
       } catch (parseError) {
-        console.warn('Failed to parse JSON, using fallback parsing');
+        // Try to extract JSON from markdown code blocks or text
+        try {
+          // Look for JSON in code blocks
+          const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+          if (jsonMatch) {
+            const suggestions = JSON.parse(jsonMatch[1]);
+            if (Array.isArray(suggestions) && suggestions.length > 0) {
+              return suggestions.slice(0, 3);
+            }
+          }
+          
+          // Look for JSON array pattern
+          const arrayMatch = content.match(/\[\s*\{[\s\S]*\}\s*\]/);
+          if (arrayMatch) {
+            const suggestions = JSON.parse(arrayMatch[0]);
+            if (Array.isArray(suggestions) && suggestions.length > 0) {
+              return suggestions.slice(0, 3);
+            }
+          }
+        } catch (secondParseError) {
+          console.warn('Failed to parse JSON, using fallback parsing. Content:', content);
+        }
       }
 
       // Fallback: extract suggestions from text response
@@ -204,7 +233,9 @@ Format: [{"name": "Title", "prompt": "Detailed prompt..."}, ...]`
       });
 
       if (!response.ok) {
-        throw new Error(`DeepSeek API error: ${response.status}`);
+        const errorBody = await response.text();
+        console.error('DeepSeek API Error Body:', errorBody);
+        throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
       }
 
       const result: DeepSeekResponse = await response.json();

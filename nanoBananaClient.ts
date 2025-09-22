@@ -3,16 +3,7 @@
  * Uses kie.ai API with google/nano-banana-edit (Gemini 2.5 Flash Image) model
  */
 
-// Extend ImportMeta interface to include env
-declare global {
-  interface ImportMetaEnv {
-    VITE_KIE_API_KEY: string;
-  }
-  
-  interface ImportMeta {
-    readonly env: ImportMetaEnv;
-  }
-}
+// Type declarations are now in vite-env.d.ts
 
 interface NanoBananaCreateTaskRequest {
   model: "google/nano-banana-edit";
