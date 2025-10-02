@@ -61,6 +61,24 @@ export interface ImageAnalysis {
     sharpness: 'poor' | 'fair' | 'good' | 'excellent';
     exposure: 'underexposed' | 'correct' | 'overexposed';
     noise: 'high' | 'medium' | 'low';
+    contrast: 'poor' | 'fair' | 'good' | 'excellent';
+    saturation: 'poor' | 'fair' | 'good' | 'excellent';
+    whiteBalance: 'correct' | 'warm' | 'cool' | 'mixed';
+    dynamicRange: 'poor' | 'fair' | 'good' | 'excellent';
+    clarity: 'poor' | 'fair' | 'good' | 'excellent';
+  };
+  colorAnalysis: {
+    vibrancy: 'poor' | 'fair' | 'good' | 'excellent';
+    colorBalance: 'balanced' | 'warm-biased' | 'cool-biased' | 'needs-adjustment';
+    colorHarmony: 'poor' | 'fair' | 'good' | 'excellent';
+    dominantTone: 'warm' | 'cool' | 'neutral';
+  };
+  technicalDetails: {
+    focusAccuracy: 'poor' | 'fair' | 'good' | 'excellent';
+    motionBlur: 'none' | 'slight' | 'moderate' | 'severe';
+    chromaticAberration: 'none' | 'minimal' | 'noticeable' | 'severe';
+    vignetting: 'none' | 'subtle' | 'moderate' | 'heavy';
+    grainTexture: 'fine' | 'medium' | 'coarse' | 'excessive';
   };
   
   // Suggestions
@@ -180,7 +198,116 @@ export const GeminiAnalysisPanel: React.FC<GeminiAnalysisPanelProps> = ({
 
           {/* Technical Analysis */}
           <div className="analysis-section">
-            <h4>Technical Analysis</h4>
+            <h4>📊 Image Quality</h4>
+            <div className="technical-grid">
+              <div className="technical-item">
+                <span className="label">Sharpness</span>
+                <span className={`quality-badge ${analysis.quality.sharpness}`}>
+                  {analysis.quality.sharpness}
+                </span>
+              </div>
+              <div className="technical-item">
+                <span className="label">Exposure</span>
+                <span className="quality-badge">{analysis.quality.exposure}</span>
+              </div>
+              <div className="technical-item">
+                <span className="label">Contrast</span>
+                <span className={`quality-badge ${analysis.quality.contrast}`}>
+                  {analysis.quality.contrast}
+                </span>
+              </div>
+              <div className="technical-item">
+                <span className="label">Saturation</span>
+                <span className={`quality-badge ${analysis.quality.saturation}`}>
+                  {analysis.quality.saturation}
+                </span>
+              </div>
+              <div className="technical-item">
+                <span className="label">White Balance</span>
+                <span className="quality-badge">{analysis.quality.whiteBalance}</span>
+              </div>
+              <div className="technical-item">
+                <span className="label">Dynamic Range</span>
+                <span className={`quality-badge ${analysis.quality.dynamicRange}`}>
+                  {analysis.quality.dynamicRange}
+                </span>
+              </div>
+              <div className="technical-item">
+                <span className="label">Clarity</span>
+                <span className={`quality-badge ${analysis.quality.clarity}`}>
+                  {analysis.quality.clarity}
+                </span>
+              </div>
+              <div className="technical-item">
+                <span className="label">Noise Level</span>
+                <span className="quality-badge">{analysis.quality.noise}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Color Analysis */}
+          {analysis.colorAnalysis && (
+            <div className="analysis-section">
+              <h4>🎨 Color Analysis</h4>
+              <div className="technical-grid">
+                <div className="technical-item">
+                  <span className="label">Vibrancy</span>
+                  <span className={`quality-badge ${analysis.colorAnalysis.vibrancy}`}>
+                    {analysis.colorAnalysis.vibrancy}
+                  </span>
+                </div>
+                <div className="technical-item">
+                  <span className="label">Color Balance</span>
+                  <span className="quality-badge">{analysis.colorAnalysis.colorBalance}</span>
+                </div>
+                <div className="technical-item">
+                  <span className="label">Color Harmony</span>
+                  <span className={`quality-badge ${analysis.colorAnalysis.colorHarmony}`}>
+                    {analysis.colorAnalysis.colorHarmony}
+                  </span>
+                </div>
+                <div className="technical-item">
+                  <span className="label">Dominant Tone</span>
+                  <span className="quality-badge">{analysis.colorAnalysis.dominantTone}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Technical Details */}
+          {analysis.technicalDetails && (
+            <div className="analysis-section">
+              <h4>🔧 Technical Details</h4>
+              <div className="technical-grid">
+                <div className="technical-item">
+                  <span className="label">Focus Accuracy</span>
+                  <span className={`quality-badge ${analysis.technicalDetails.focusAccuracy}`}>
+                    {analysis.technicalDetails.focusAccuracy}
+                  </span>
+                </div>
+                <div className="technical-item">
+                  <span className="label">Motion Blur</span>
+                  <span className="quality-badge">{analysis.technicalDetails.motionBlur}</span>
+                </div>
+                <div className="technical-item">
+                  <span className="label">Chromatic Aberration</span>
+                  <span className="quality-badge">{analysis.technicalDetails.chromaticAberration}</span>
+                </div>
+                <div className="technical-item">
+                  <span className="label">Vignetting</span>
+                  <span className="quality-badge">{analysis.technicalDetails.vignetting}</span>
+                </div>
+                <div className="technical-item">
+                  <span className="label">Grain Texture</span>
+                  <span className="quality-badge">{analysis.technicalDetails.grainTexture}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Composition & Lighting */}
+          <div className="analysis-section">
+            <h4>📐 Composition & Lighting</h4>
             <div className="technical-grid">
               <div className="technical-item">
                 <span className="label">Composition</span>
@@ -195,16 +322,6 @@ export const GeminiAnalysisPanel: React.FC<GeminiAnalysisPanelProps> = ({
                   {analysis.lighting.quality}
                 </span>
                 <p className="notes">{analysis.lighting.notes}</p>
-              </div>
-              <div className="technical-item">
-                <span className="label">Sharpness</span>
-                <span className={`quality-badge ${analysis.quality.sharpness}`}>
-                  {analysis.quality.sharpness}
-                </span>
-              </div>
-              <div className="technical-item">
-                <span className="label">Exposure</span>
-                <span className="quality-badge">{analysis.quality.exposure}</span>
               </div>
             </div>
           </div>

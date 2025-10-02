@@ -284,14 +284,16 @@ const PREDEFINED_FILTERS = [
 ];
 
 const ARTISTIC_STYLES = [
-  { name: 'Oil Painting', prompt: 'transform the image into a classic oil painting with visible brushstrokes and rich texture' },
-  { name: 'Sketch', prompt: 'convert the image into a detailed pencil sketch with fine lines and shading' },
-  { name: 'Cartoon', prompt: 'reimagine the image in a vibrant, bold-lined cartoon style' },
-  { name: 'Impressionist', prompt: 'apply an impressionist painting style, focusing on light and movement with short, thick brushstrokes' },
-  { name: 'Pop Art', prompt: 'transform the image into a vibrant, colorful pop art style like Andy Warhol' },
-  { name: 'Cyberpunk', prompt: 'give the image a futuristic, neon-drenched cyberpunk aesthetic with glowing lights and a gritty atmosphere' },
-  { name: 'Steampunk', prompt: 'recreate the image with a steampunk theme, incorporating gears, cogs, brass, and Victorian-era technology' },
-  { name: 'Stained Glass', prompt: 'transform the image into a beautiful stained glass window with bold black outlines and vibrant, translucent colors' },
+  { name: 'Monet Impressionism', prompt: 'transform into a Claude Monet impressionist masterpiece with soft pastel light and hazy atmosphere, as if reflected through morning fog with visible brushstrokes' },
+  { name: 'Picasso Cubism', prompt: 'transform into Pablo Picasso cubist style with geometric fragmented shapes breaking the scene into angular perspectives and multiple viewpoints' },
+  { name: 'Dalí Surrealism', prompt: 'transform into Salvador Dalí surrealist style with dreamlike distorted forms, melting or morphing shapes creating an otherworldly atmosphere' },
+  { name: 'Munch Expressionism', prompt: 'transform into Edvard Munch expressionist style with dramatic moody colors and bold emotional strokes, intense atmosphere like The Scream' },
+  { name: 'Warhol Pop Art', prompt: 'transform into Andy Warhol pop art style with bright bold flat colors, high contrast, and repeating comic-style panels with vibrant hues' },
+  { name: 'Pollock Abstract', prompt: 'transform into Jackson Pollock abstract expressionism with explosive drips and splatters overlaying the scene, chaotic energetic brushwork' },
+  { name: 'Japanese Ukiyo-e', prompt: 'transform into Japanese Ukiyo-e woodblock print style like Hokusai with flat waves, stylized patterns, traditional linework and vibrant colors' },
+  { name: 'Da Vinci Renaissance', prompt: 'transform into Leonardo da Vinci Renaissance realism with classical perspective, detailed shadows, sfumato technique, and golden soft light' },
+  { name: 'Futurism', prompt: 'transform into Futurism Umberto Boccioni style with dynamic energy, speed lines, motion blur, and glowing lights suggesting movement and velocity' },
+  { name: 'Cyberpunk Neon', prompt: 'transform into modern cyberpunk digital neon style, Blade Runner-inspired with glowing purples, pinks and blues, neon rain and dystopian atmosphere' },
 ];
 
 const LOADING_MESSAGES = [
@@ -1723,12 +1725,16 @@ const handleGenerateMoreSuggestions = useCallback(async () => {
 }, [activeSuggestionCategory, image]);
 
 const handleResetToOriginal = useCallback(() => {
+    // If there's a preview, restore the original image
     if (imageBeforePreview) {
         setImage(imageBeforePreview);
         setImageBeforePreview(null);
-        setSuggestions(null);
-        setError(null);
     }
+    // Always clear suggestions and related states when closing
+    setSuggestions(null);
+    setCompositionAnalysis(null);
+    setError(null);
+    setActiveSuggestionCategory('');
 }, [imageBeforePreview]);
 
   const handleGetCreativeIdeas = createSuggestionHandler(

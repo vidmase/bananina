@@ -340,7 +340,27 @@ Perform a comprehensive analysis of this image and return ONLY a valid JSON obje
   "quality": {
     "sharpness": "excellent|good|fair|poor",
     "exposure": "correct|underexposed|overexposed",
-    "noise": "low|medium|high"
+    "noise": "low|medium|high",
+    "contrast": "excellent|good|fair|poor",
+    "saturation": "excellent|good|fair|poor",
+    "whiteBalance": "correct|warm|cool|mixed",
+    "dynamicRange": "excellent|good|fair|poor",
+    "clarity": "excellent|good|fair|poor"
+  },
+  
+  "colorAnalysis": {
+    "vibrancy": "excellent|good|fair|poor",
+    "colorBalance": "balanced|warm-biased|cool-biased|needs-adjustment",
+    "colorHarmony": "excellent|good|fair|poor",
+    "dominantTone": "warm|cool|neutral"
+  },
+  
+  "technicalDetails": {
+    "focusAccuracy": "excellent|good|fair|poor",
+    "motionBlur": "none|slight|moderate|severe",
+    "chromaticAberration": "none|minimal|noticeable|severe",
+    "vignetting": "none|subtle|moderate|heavy",
+    "grainTexture": "fine|medium|coarse|excessive"
   },
   
   "strengths": [
@@ -391,8 +411,12 @@ CRITICAL REQUIREMENTS:
 - Provide exactly 3-5 editing suggestions, prioritized by impact
 - All editing prompts must be specific, actionable, and ready to use
 - Color palette should contain 5 dominant hex colors from the image
+- Analyze ALL quality parameters: sharpness, exposure, noise, contrast, saturation, white balance, dynamic range, and clarity
+- Provide detailed colorAnalysis including vibrancy, color balance, harmony, and dominant tone
+- Assess technicalDetails like focus accuracy, motion blur, chromatic aberration, vignetting, and grain texture
 - Be specific and base all analysis on what you actually see in the image
-- Do not hallucinate or make assumptions beyond what's visible`;
+- Do not hallucinate or make assumptions beyond what's visible
+- Rate each parameter accurately based on professional photography standards`;
 
     const body = {
       contents: [
@@ -485,7 +509,29 @@ CRITICAL REQUIREMENTS:
       colorPalette: Array.isArray(extracted.colorPalette) ? extracted.colorPalette.slice(0, 5) : [],
       composition: extracted.composition || { rule: 'Unknown', quality: 'fair', notes: 'N/A' },
       lighting: extracted.lighting || { type: 'Unknown', quality: 'fair', notes: 'N/A' },
-      quality: extracted.quality || { sharpness: 'fair', exposure: 'correct', noise: 'medium' },
+      quality: extracted.quality || { 
+        sharpness: 'fair', 
+        exposure: 'correct', 
+        noise: 'medium',
+        contrast: 'fair',
+        saturation: 'fair',
+        whiteBalance: 'correct',
+        dynamicRange: 'fair',
+        clarity: 'fair'
+      },
+      colorAnalysis: extracted.colorAnalysis || {
+        vibrancy: 'fair',
+        colorBalance: 'balanced',
+        colorHarmony: 'fair',
+        dominantTone: 'neutral'
+      },
+      technicalDetails: extracted.technicalDetails || {
+        focusAccuracy: 'fair',
+        motionBlur: 'none',
+        chromaticAberration: 'minimal',
+        vignetting: 'none',
+        grainTexture: 'fine'
+      },
       strengths: Array.isArray(extracted.strengths) ? extracted.strengths : [],
       improvements: Array.isArray(extracted.improvements) ? extracted.improvements : [],
       editingSuggestions: Array.isArray(extracted.editingSuggestions) ? extracted.editingSuggestions : [],
