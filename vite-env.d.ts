@@ -9,3 +9,5 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// Speech Recognition API types (types already declared in index.tsx)

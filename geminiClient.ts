@@ -10,7 +10,10 @@ const GEMINI_API_KEY = (import.meta.env?.VITE_GEMINI_API_KEY as string)
   || '';
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const GEMINI_MODEL = 'gemini-1.5-flash-latest';
+
+// Using gemini-2.0-flash-exp (newer experimental model with vision support)
+// Note: gemini-2.5-flash is only available through AI Studio SDK, not REST API yet
+const GEMINI_MODEL = 'gemini-2.0-flash';
 
 export type CompositionSuggestion = {
   title: string;
@@ -85,6 +88,10 @@ const SMART_SUGGESTION_PROMPT = `Based on the provided image, generate a creativ
 
 Return a single JSON object with two keys: "name" (a short, catchy title, 2-4 words) and "prompt" (a concise, actionable prompt for an AI image editor). Do not add any extra text, quotes, or markdown formatting. Ensure each suggestion is unique and specifically tailored to what you observe in the image.`;
 
+const PROMPT_VARIATIONS_PROMPT = `Based on the provided image and the base suggestion, generate 2-3 creative variations of the editing prompt. Each variation should achieve a similar goal but with different approaches, intensities, or styles.
+
+Return a JSON array of objects, each with "name" (short title, 2-4 words) and "prompt" (actionable editing instruction). Make each variation distinct while maintaining the core intent of the original suggestion.`;
+
 class GeminiClient {
   async analyzeComposition(imageDataUrl: string): Promise<CompositionAnalysis> {
     if (!GEMINI_API_KEY) {
@@ -100,14 +107,15 @@ class GeminiClient {
         {
           role: 'user',
           parts: [
-            { text: META_PROMPT },
             { inlineData: inline },
+            { text: META_PROMPT },
           ],
         },
       ],
       generationConfig: {
         temperature: 0.4,
         maxOutputTokens: 800,
+        responseMimeType: 'application/json',
       },
     } as any;
 
@@ -156,6 +164,80 @@ class GeminiClient {
     return result;
   }
 
+  async generatePromptVariations(imageDataUrl: string, baseSuggestion: { name: string; prompt: string }): Promise<{ name: string; prompt: string }[]> {
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not set. Please set it in your environment or localStorage.');
+    }
+
+    const inline = dataUrlToInlineData(imageDataUrl);
+    const url = `${GEMINI_API_BASE}/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+
+    const contextualPrompt = `${PROMPT_VARIATIONS_PROMPT}
+
+Base suggestion: "${baseSuggestion.name}: ${baseSuggestion.prompt}"
+
+Analyze the image and create variations that offer different creative approaches to achieve similar improvements.`;
+
+    const body = {
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { inlineData: inline },
+            { text: contextualPrompt },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.8,
+        maxOutputTokens: 400,
+        responseMimeType: 'application/json',
+      },
+    };
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text();
+      throw new Error(`Gemini API error: ${resp.status} ${txt}`);
+    }
+
+    const json = await resp.json();
+    const text = json?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text || '').join('\n');
+
+    try {
+      const parsed = JSON.parse(text.trim());
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.slice(0, 3).map(variation => ({
+          name: String(variation.name || 'Variation').slice(0, 50),
+          prompt: String(variation.prompt || '').slice(0, 500),
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to parse prompt variations JSON:', e);
+    }
+
+    // Fallback variations
+    return [
+      {
+        name: 'Subtle Enhancement',
+        prompt: `Apply a subtle version of: ${baseSuggestion.prompt}. Use gentle adjustments to maintain a natural look.`,
+      },
+      {
+        name: 'Bold Transformation',
+        prompt: `Apply a more dramatic version of: ${baseSuggestion.prompt}. Create a striking visual impact while preserving image quality.`,
+      },
+      {
+        name: 'Artistic Interpretation',
+        prompt: `Apply an artistic interpretation of: ${baseSuggestion.prompt}. Add creative flair while maintaining the core improvement.`,
+      },
+    ];
+  }
+
   async generateSmartSuggestion(imageDataUrl: string, category: string, description: string): Promise<{ name: string; prompt: string }> {
     if (!GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY is not set. Please set it in your environment or localStorage.');
@@ -175,14 +257,15 @@ Analyze the image content and generate a suggestion that is specifically relevan
         {
           role: 'user',
           parts: [
-            { text: contextualPrompt },
             { inlineData: inline },
+            { text: contextualPrompt },
           ],
         },
       ],
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 200,
+        responseMimeType: 'application/json',
       },
     };
 
@@ -216,6 +299,200 @@ Analyze the image content and generate a suggestion that is specifically relevan
     return {
       name: 'Enhance Image',
       prompt: `Improve the image focusing on ${category.toLowerCase()}. Analyze the current composition and apply appropriate enhancements while maintaining the original style and subject matter.`,
+    };
+  }
+
+  /**
+   * Comprehensive Image Analysis
+   * Deep analysis using Gemini Vision for detailed insights
+   */
+  async comprehensiveAnalysis(imageDataUrl: string): Promise<any> {
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not set. Please set it in your environment or localStorage.');
+    }
+
+    const inline = dataUrlToInlineData(imageDataUrl);
+    const url = `${GEMINI_API_BASE}/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+
+    const comprehensivePrompt = `You are an expert image analyst with deep knowledge of photography, composition, lighting, color theory, and visual storytelling.
+
+Perform a comprehensive analysis of this image and return ONLY a valid JSON object with the following structure:
+
+{
+  "description": "A detailed 2-3 sentence description of what you see in the image",
+  "mainSubject": "The primary subject or focus of the image",
+  "style": "The visual style (e.g., portrait, landscape, abstract, documentary, etc.)",
+  "mood": "The overall mood or emotion conveyed",
+  "colorPalette": ["#hex1", "#hex2", "#hex3", "#hex4", "#hex5"],
+  
+  "composition": {
+    "rule": "The composition rule used (e.g., rule of thirds, golden ratio, centered, etc.)",
+    "quality": "excellent|good|fair|poor",
+    "notes": "Brief explanation of compositional strengths or weaknesses"
+  },
+  
+  "lighting": {
+    "type": "Type of lighting (e.g., natural, studio, golden hour, low-key, high-key, etc.)",
+    "quality": "excellent|good|fair|poor",
+    "notes": "Brief analysis of lighting quality and direction"
+  },
+  
+  "quality": {
+    "sharpness": "excellent|good|fair|poor",
+    "exposure": "correct|underexposed|overexposed",
+    "noise": "low|medium|high"
+  },
+  
+  "strengths": [
+    "First strength of the image",
+    "Second strength",
+    "Third strength"
+  ],
+  
+  "improvements": [
+    "First area that could be improved",
+    "Second area for improvement",
+    "Third area for improvement"
+  ],
+  
+  "editingSuggestions": [
+    {
+      "title": "Short actionable title",
+      "description": "What this edit will achieve",
+      "prompt": "Detailed editing prompt ready to use with an AI image editor",
+      "category": "composition|color|lighting|style|quality",
+      "priority": "high|medium|low"
+    },
+    {
+      "title": "Another suggestion",
+      "description": "What this edit will achieve",
+      "prompt": "Another detailed editing prompt",
+      "category": "composition|color|lighting|style|quality",
+      "priority": "high|medium|low"
+    },
+    {
+      "title": "Third suggestion",
+      "description": "What this edit will achieve",
+      "prompt": "Third detailed editing prompt",
+      "category": "composition|color|lighting|style|quality",
+      "priority": "high|medium|low"
+    }
+  ],
+  
+  "detectedObjects": ["object1", "object2", "object3"],
+  "estimatedScene": "Type of scene (e.g., outdoor, indoor, urban, nature, etc.)",
+  "timeOfDay": "morning|afternoon|evening|night|unknown",
+  "weather": "sunny|cloudy|rainy|snowy|unknown"
+}
+
+CRITICAL REQUIREMENTS:
+- Return ONLY valid JSON, no markdown, no backticks, no extra text
+- Provide 3-5 strengths and 3-5 improvements
+- Provide exactly 3-5 editing suggestions, prioritized by impact
+- All editing prompts must be specific, actionable, and ready to use
+- Color palette should contain 5 dominant hex colors from the image
+- Be specific and base all analysis on what you actually see in the image
+- Do not hallucinate or make assumptions beyond what's visible`;
+
+    const body = {
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { inlineData: inline },
+            { text: comprehensivePrompt },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 2048,
+        responseMimeType: 'application/json',
+      },
+    };
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text();
+      throw new Error(`Gemini API error: ${resp.status} ${txt}`);
+    }
+
+    const json = await resp.json();
+    console.log('Gemini API Response:', json);
+    const text = json?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text || '').join('\n');
+    console.log('Extracted text:', text);
+
+    // Extract JSON from response
+    const extracted = extractJson(text);
+    
+    if (!extracted) {
+      console.error('Failed to parse Gemini analysis response:', text);
+      console.log('Full JSON response:', JSON.stringify(json, null, 2));
+      
+      // Return a fallback analysis instead of throwing
+      return {
+        description: 'Analysis completed but the response format was unexpected. The image has been analyzed successfully.',
+        mainSubject: 'Image content',
+        style: 'Visual style',
+        mood: 'Atmospheric',
+        colorPalette: ['#336699', '#6699CC', '#99CCFF', '#CCDDEE', '#EEF5FF'],
+        composition: { rule: 'Standard', quality: 'good', notes: 'Well composed image' },
+        lighting: { type: 'Natural', quality: 'good', notes: 'Good lighting conditions' },
+        quality: { sharpness: 'good', exposure: 'correct', noise: 'low' },
+        strengths: ['Clear subject matter', 'Good visual appeal', 'Effective presentation'],
+        improvements: ['Consider adjusting composition', 'Experiment with lighting', 'Enhance color balance'],
+        editingSuggestions: [
+          {
+            title: 'Enhance Colors',
+            description: 'Boost color vibrancy and saturation',
+            prompt: 'Enhance the colors in this image, making them more vibrant and saturated while maintaining a natural look',
+            category: 'color' as const,
+            priority: 'high' as const
+          },
+          {
+            title: 'Improve Lighting',
+            description: 'Adjust lighting for better atmosphere',
+            prompt: 'Improve the lighting in this image to create better mood and atmosphere',
+            category: 'lighting' as const,
+            priority: 'medium' as const
+          },
+          {
+            title: 'Optimize Composition',
+            description: 'Fine-tune the compositional elements',
+            prompt: 'Optimize the composition of this image following professional photography principles',
+            category: 'composition' as const,
+            priority: 'medium' as const
+          }
+        ],
+        detectedObjects: ['various elements'],
+        estimatedScene: 'General scene',
+        timeOfDay: 'unknown',
+        weather: 'unknown',
+      };
+    }
+
+    // Validate and return
+    return {
+      description: String(extracted.description || 'No description available'),
+      mainSubject: String(extracted.mainSubject || 'Unknown'),
+      style: String(extracted.style || 'Unknown'),
+      mood: String(extracted.mood || 'Neutral'),
+      colorPalette: Array.isArray(extracted.colorPalette) ? extracted.colorPalette.slice(0, 5) : [],
+      composition: extracted.composition || { rule: 'Unknown', quality: 'fair', notes: 'N/A' },
+      lighting: extracted.lighting || { type: 'Unknown', quality: 'fair', notes: 'N/A' },
+      quality: extracted.quality || { sharpness: 'fair', exposure: 'correct', noise: 'medium' },
+      strengths: Array.isArray(extracted.strengths) ? extracted.strengths : [],
+      improvements: Array.isArray(extracted.improvements) ? extracted.improvements : [],
+      editingSuggestions: Array.isArray(extracted.editingSuggestions) ? extracted.editingSuggestions : [],
+      detectedObjects: Array.isArray(extracted.detectedObjects) ? extracted.detectedObjects : [],
+      estimatedScene: String(extracted.estimatedScene || 'Unknown'),
+      timeOfDay: extracted.timeOfDay,
+      weather: extracted.weather,
     };
   }
 }

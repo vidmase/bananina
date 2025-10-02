@@ -476,6 +476,97 @@ const extractBase64Data = (base64DataUrl: string): string | null => {
   return match[2];
 };
 
+type ColorTone = 'shadows' | 'midtones' | 'highlights';
+type ColorChannel = 'r' | 'g' | 'b';
+
+type ColorBalanceState = Record<ColorTone, Record<ColorChannel, number>>;
+
+const COLOR_TONES: ColorTone[] = ['shadows', 'midtones', 'highlights'];
+const COLOR_CHANNELS: ColorChannel[] = ['r', 'g', 'b'];
+
+const COLOR_TONE_LABELS: Record<ColorTone, string> = {
+  shadows: 'Shadows',
+  midtones: 'Midtones',
+  highlights: 'Highlights',
+};
+
+const COLOR_CHANNEL_LABELS: Record<ColorChannel, string> = {
+  r: 'Red',
+  g: 'Green',
+  b: 'Blue',
+};
+
+const createInitialColorBalance = (): ColorBalanceState => ({
+  shadows: { r: 0, g: 0, b: 0 },
+  midtones: { r: 0, g: 0, b: 0 },
+  highlights: { r: 0, g: 0, b: 0 },
+});
+
+const isColorBalanceNeutral = (balance: ColorBalanceState): boolean => {
+  for (const tone of COLOR_TONES) {
+    for (const channel of COLOR_CHANNELS) {
+      if (balance[tone][channel] !== 0) {
+        return false;
+      }
+    }
+  }
+  return true;
+};
+
+const clampChannel = (value: number): number => Math.max(0, Math.min(255, value));
+
+const applyColorBalanceToImage = (sourceImage: string, balance: ColorBalanceState): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Failed to create canvas context for color balance adjustments.'));
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const adjustmentScale = 0.6;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        const shadowWeight = Math.max(0, (128 - luminance) / 128);
+        const highlightWeight = Math.max(0, (luminance - 128) / 127);
+        const midtoneWeight = Math.max(0, 1 - Math.abs((luminance - 128) / 128));
+
+        const adjustChannel = (channelValue: number, channel: ColorChannel): number => {
+          const totalAdjustment =
+            balance.shadows[channel] * shadowWeight +
+            balance.midtones[channel] * midtoneWeight +
+            balance.highlights[channel] * highlightWeight;
+
+          return clampChannel(channelValue + totalAdjustment * adjustmentScale);
+        };
+
+        data[i] = adjustChannel(r, 'r');
+        data[i + 1] = adjustChannel(g, 'g');
+        data[i + 2] = adjustChannel(b, 'b');
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      resolve(canvas.toDataURL());
+    };
+
+    img.onerror = () => reject(new Error('Unable to load image for color balance adjustments.'));
+    img.src = sourceImage;
+  });
+};
+
 const App: React.FC = () => {
   const [prompt, setPrompt] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -501,6 +592,11 @@ const App: React.FC = () => {
   const [compositionAnalysis, setCompositionAnalysis] = useState<CompositionAnalysis | null>(null);
   const [isAnalyzingComposition, setIsAnalyzingComposition] = useState<boolean>(false);
   const [compositionError, setCompositionError] = useState<string | null>(null);
+  
+  // Deep Analysis State
+  const [deepAnalysis, setDeepAnalysis] = useState<any | null>(null);
+  const [isDeepAnalyzing, setIsDeepAnalyzing] = useState<boolean>(false);
+  const [deepAnalysisError, setDeepAnalysisError] = useState<string | null>(null);
   const [imageBeforePreview, setImageBeforePreview] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState<string | null>(null);
   const [activeSuggestionCategory, setActiveSuggestionCategory] = useState<string>('');
@@ -567,6 +663,115 @@ const App: React.FC = () => {
 
 
   const [image, setImage] = useState<string | null>(null);
+  const [colorBalance, setColorBalance] = useState<ColorBalanceState>(createInitialColorBalance());
+  const [isColorBalanceProcessing, setIsColorBalanceProcessing] = useState<boolean>(false);
+  const colorBalanceApplyTimeoutRef = useRef<number | null>(null);
+  const colorBalanceBaseImageRef = useRef<string | null>(null);
+  const colorBalanceAppliedImageRef = useRef<string | null>(null);
+  const colorBalanceApplyIdRef = useRef<number>(0);
+  const colorBalanceApplyingRef = useRef<boolean>(false);
+  const latestImageRef = useRef<string | null>(null);
+  const hasColorBalanceAdjustments = useMemo(() => !isColorBalanceNeutral(colorBalance), [colorBalance]);
+
+  const scheduleColorBalanceApply = useCallback((balanceToApply: ColorBalanceState) => {
+    if (!image) return;
+
+    if (!latestImageRef.current) {
+      latestImageRef.current = image;
+    }
+
+    if (!colorBalanceBaseImageRef.current) {
+      colorBalanceBaseImageRef.current = latestImageRef.current || image;
+    }
+
+    if (colorBalanceApplyTimeoutRef.current !== null) {
+      window.clearTimeout(colorBalanceApplyTimeoutRef.current);
+    }
+
+    const applyId = ++colorBalanceApplyIdRef.current;
+
+    colorBalanceApplyTimeoutRef.current = window.setTimeout(async () => {
+      colorBalanceApplyTimeoutRef.current = null;
+
+      const baseImage = colorBalanceBaseImageRef.current || latestImageRef.current;
+      if (!baseImage) {
+        return;
+      }
+
+      if (isColorBalanceNeutral(balanceToApply)) {
+        colorBalanceApplyingRef.current = true;
+        setIsColorBalanceProcessing(false);
+        if (colorBalanceBaseImageRef.current) {
+          setImage(colorBalanceBaseImageRef.current);
+          latestImageRef.current = colorBalanceBaseImageRef.current;
+        }
+        colorBalanceBaseImageRef.current = null;
+        colorBalanceAppliedImageRef.current = null;
+        return;
+      }
+
+      setIsColorBalanceProcessing(true);
+      try {
+        const adjustedImage = await applyColorBalanceToImage(baseImage, balanceToApply);
+        if (colorBalanceApplyIdRef.current !== applyId) {
+          return;
+        }
+        colorBalanceApplyingRef.current = true;
+        colorBalanceAppliedImageRef.current = adjustedImage;
+        latestImageRef.current = adjustedImage;
+        setImage(adjustedImage);
+      } catch (err) {
+        console.error('Color balance adjustment failed', err);
+      } finally {
+        if (colorBalanceApplyIdRef.current === applyId) {
+          setIsColorBalanceProcessing(false);
+        }
+      }
+    }, 200);
+  }, [image]);
+
+  const handleColorBalanceSliderChange = useCallback((tone: ColorTone, channel: ColorChannel, value: number) => {
+    if (!image) return;
+
+    setColorBalance(prev => {
+      const currentValue = prev[tone][channel];
+      if (currentValue === value) {
+        return prev;
+      }
+
+      const updated: ColorBalanceState = {
+        ...prev,
+        [tone]: {
+          ...prev[tone],
+          [channel]: value,
+        },
+      };
+
+      scheduleColorBalanceApply(updated);
+      return updated;
+    });
+  }, [image, scheduleColorBalanceApply]);
+
+  const handleResetColorBalance = useCallback(() => {
+    if (!image && !colorBalanceBaseImageRef.current) return;
+
+    if (colorBalanceApplyTimeoutRef.current !== null) {
+      window.clearTimeout(colorBalanceApplyTimeoutRef.current);
+      colorBalanceApplyTimeoutRef.current = null;
+    }
+
+    setColorBalance(createInitialColorBalance());
+    setIsColorBalanceProcessing(false);
+
+    if (colorBalanceBaseImageRef.current) {
+      colorBalanceApplyingRef.current = true;
+      setImage(colorBalanceBaseImageRef.current);
+      latestImageRef.current = colorBalanceBaseImageRef.current;
+    }
+
+    colorBalanceBaseImageRef.current = null;
+    colorBalanceAppliedImageRef.current = null;
+  }, [image]);
 
   // Full-size image preview functions
   const openImagePreview = (imageSrc: string) => {
@@ -830,6 +1035,32 @@ const App: React.FC = () => {
   }, [prompt]);
 
   // ---- Composition Coach ----
+  // Deep Analysis Handler
+  const handleDeepAnalysis = useCallback(async () => {
+    if (!image) return;
+    setIsDeepAnalyzing(true);
+    setDeepAnalysisError(null);
+    setDeepAnalysis(null);
+    setSuggestions(null);
+    try {
+      const analysis = await geminiClient.comprehensiveAnalysis(image);
+      setDeepAnalysis(analysis);
+      setActiveSuggestionCategory('Deep Analysis');
+      // Map editing suggestions to the format expected by suggestions state
+      const mapped = analysis.editingSuggestions.map((s: any) => ({ 
+        name: s.title, 
+        prompt: s.prompt 
+      }));
+      setSuggestions(mapped);
+    } catch (err) {
+      console.error('Deep analysis error:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to perform deep analysis.';
+      setDeepAnalysisError(msg);
+    } finally {
+      setIsDeepAnalyzing(false);
+    }
+  }, [image]);
+
   const handleAnalyzeComposition = useCallback(async () => {
     if (!image) return;
     setIsAnalyzingComposition(true);
@@ -2311,15 +2542,15 @@ const handleResetToOriginal = useCallback(() => {
             {activeTab === 'assistant' && (
               <div className="control-group">
                  <h2>AI Assistant</h2>
-                 <div className="assistant-actions" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                 <div className="assistant-actions" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
                    <button 
                      className="btn btn-primary haptic-button" 
                      onClick={() => { haptics.confirm(); handleAnalyzeComposition(); }} 
                      disabled={!image || isAnalyzingComposition}
                    >
-                     {isAnalyzingComposition ? 'Analyzing…' : 'Analyze Image'}
+                     {isAnalyzingComposition ? 'Analyzing…' : '📸 Analyze Image'}
                    </button>
-                   {compositionError && !compositionAnalysis && <span className="error-message" role="alert" style={{ marginLeft: '0.5rem' }}>{compositionError}</span>}
+                   {compositionError && !compositionAnalysis && <span className="error-message" role="alert">{compositionError}</span>}
                  </div>
                   <div className="assistant-categories">
                     <div className="assistant-category">

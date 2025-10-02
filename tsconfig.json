@@ -18,12 +18,48 @@
     "moduleDetection": "force",
     "allowJs": true,
     "jsx": "react-jsx",
+    
+    /* Path Mapping */
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"],
+      "@/types": ["./types"],
+      "@/types/*": ["./types/*"],
+      "@/components": ["./components"],
+      "@/components/*": ["./components/*"],
+      "@/utils": ["./utils"],
+      "@/utils/*": ["./utils/*"],
+      "@/contexts": ["./contexts"],
+      "@/contexts/*": ["./contexts/*"]
     },
+    
+    /* Type Checking - Temporarily relaxed during migration */
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": false,
+    "noImplicitThis": false,
+    "alwaysStrict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": false,
+    "noPropertyAccessFromIndexSignature": false,
+    
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "types/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build"
+  ]
 }

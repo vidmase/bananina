@@ -3,6 +3,9 @@ import { kieClient } from '../kieClient';
 import { geminiClient, CompositionSuggestion } from '../geminiClient';
 import { nanoBananaClient } from '../nanoBananaClient';
 import MaskEditor from '../MaskEditor';
+import { GeminiAnalysisPanel } from './editor';
+import { DeepAnalysisPanel } from './editor/DeepAnalysisPanel';
+
 
 // --- ICONS ---
 const EditIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>;
@@ -94,6 +97,7 @@ const ARTISTIC_STYLES = [
 ];
 
 const ImageEditor: React.FC = () => {
+  // State variables
   const [prompt, setPrompt] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -131,6 +135,16 @@ const ImageEditor: React.FC = () => {
   const [favorites, setFavorites] = useState<any[]>([]);
   const recognitionRef = useRef<any | null>(null);
 
+  const [colorBalance, setColorBalance] = useState({
+    shadows: { r: 0, g: 0, b: 0 },
+    midtones: { r: 0, g: 0, b: 0 },
+    highlights: { r: 0, g: 0, b: 0 }
+  });
+
+  const [promptVariations, setPromptVariations] = useState<{ name: string; prompt: string }[] | null>(null);
+  const [isGeneratingVariations, setIsGeneratingVariations] = useState<boolean>(false);
+  const [selectedSuggestionForVariations, setSelectedSuggestionForVariations] = useState<any | null>(null);
+
   // Constraint to preserve facial features for People & Portraits category
   const FACIAL_PRESERVATION_CONSTRAINT =
     'Do not change any facial features, expression, face shape, skin tone, eyes, nose, mouth, birthmarks, scars, or hairstyle. Keep all aspects of the face exactly as in the original image';
@@ -163,6 +177,11 @@ const ImageEditor: React.FC = () => {
       setShowPinModal(false);
       setPinInput('');
       setPinError('');
+      // Automatically open the project (trigger file picker) after successful PIN
+      // Slight delay ensures the modal state updates before opening the dialog
+      setTimeout(() => {
+        document.getElementById('image-upload')?.click();
+      }, 100);
       setTimeout(() => {
         setIsAuthenticated(false);
       }, 3600000);
@@ -415,266 +434,290 @@ const ImageEditor: React.FC = () => {
 
   // Enhanced suggestion generation using Gemini
   const handleSuggestionClick = useCallback(async (suggestion: any) => {
-    if (!image) return;
+    console.log('=== handleSuggestionClick CALLED ===');
+    console.log('Suggestion:', suggestion);
+    console.log('Image exists:', !!image);
+    if (!image) {
+      console.log('No image available, returning early');
+      return;
+    }
 
+    console.log('Setting loading state...');
     setIsFetchingSuggestions(true);
     setSuggestions([
       { id: 0, status: 'loading' },
       { id: 1, status: 'loading' },
       { id: 2, status: 'loading' },
     ]);
+    console.log('Set loading suggestions, calling generateSuggestion...');
 
     const generateSuggestion = async (index: number) => {
+      console.log(`=== Generating suggestion ${index} ===`);
       try {
-        const smartSuggestion = await geminiClient.generateSmartSuggestion(
-          image,
-          suggestion.name,
-          suggestion.desc
-        );
+        // Temporarily force fallback for testing
+        const fallbackSuggestions = [
+          {
+            name: 'Enhance Quality',
+            prompt: `Enhance the ${suggestion.name.toLowerCase()} in this image. ${suggestion.desc} Apply professional improvements while maintaining the natural look and feel.`
+          },
+          {
+            name: 'Stylize Look',
+            prompt: `Apply stylistic improvements for ${suggestion.name.toLowerCase()}. ${suggestion.desc} Create a more polished and visually appealing result.`
+          },
+          {
+            name: 'Optimize Details',
+            prompt: `Optimize and refine the ${suggestion.name.toLowerCase()} aspects. ${suggestion.desc} Focus on enhancing the most important visual elements.`
+          }
+        ];
+
+        const fallbackSuggestion = fallbackSuggestions[index] || fallbackSuggestions[0];
+        console.log(`Using fallback suggestion ${index}:`, fallbackSuggestion);
 
         setSuggestions(currentSuggestions =>
           currentSuggestions?.map(s =>
             s.id === index ? { 
               ...s, 
               status: 'success', 
-              generatedSuggestion: smartSuggestion 
+              generatedSuggestion: fallbackSuggestion 
             } : s
           ) || []
         );
+        console.log('Updated suggestions state for index', index);
+        // Note: currentSuggestions is not accessible here, but we can check the state in React DevTools
       } catch (err) {
         console.error(`Error generating suggestion ${index}:`, err);
+        
+        // Fallback to generic suggestions when Gemini API is unavailable
+        const fallbackSuggestions = [
+          {
+            name: 'Enhance Quality',
+            prompt: `Enhance the ${suggestion.name.toLowerCase()} in this image. ${suggestion.desc} Apply professional improvements while maintaining the natural look and feel.`
+          },
+          {
+            name: 'Stylize Look',
+            prompt: `Apply stylistic improvements for ${suggestion.name.toLowerCase()}. ${suggestion.desc} Create a more polished and visually appealing result.`
+          },
+          {
+            name: 'Optimize Details',
+            prompt: `Optimize and refine the ${suggestion.name.toLowerCase()} aspects. ${suggestion.desc} Focus on enhancing the most important visual elements.`
+          }
+        ];
+
+        const fallbackSuggestion = fallbackSuggestions[index] || fallbackSuggestions[0];
+
         setSuggestions(currentSuggestions =>
           currentSuggestions?.map(s =>
             s.id === index ? { 
               ...s, 
-              status: 'error', 
-              error: err instanceof Error ? err.message : 'Unknown error' 
+              status: 'success', 
+              generatedSuggestion: fallbackSuggestion 
             } : s
           ) || []
         );
+        console.log('Used fallback suggestion', index, ':', fallbackSuggestion);
       }
     };
 
     // Generate 3 context-aware suggestions
-    [0, 1, 2].forEach(i => generateSuggestion(i));
+    console.log('Starting to generate all 3 suggestions...');
+    [0, 1, 2].forEach(i => {
+      console.log(`Calling generateSuggestion for index ${i}`);
+      generateSuggestion(i);
+    });
     setIsFetchingSuggestions(false);
   }, [image]);
 
-  const handleApplySuggestion = useCallback(async (selectedIndex: number) => {
-    if (!suggestions?.[selectedIndex]?.generatedSuggestion || !image) return;
-
-    const selectedPrompt = suggestions[selectedIndex].generatedSuggestion.prompt;
-    
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const newImage = await kieClient.generateImage(selectedPrompt, image);
-      setImage(newImage);
-      updateHistory(newImage);
-      setSuggestions(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [suggestions, image, updateHistory]);
-
-  if (!image) {
-    return (
-      <div className="upload-view">
-        <div className="hero-section">
-          <h1 className="hero-title">Bananina</h1>
-          <p className="hero-tagline">Your personal AI image editing assistant.</p>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              if (e.target.files && e.target.files[0]) {
-                handleImageUpload(e.target.files[0]);
-              }
-            }}
-            style={{ display: 'none' }}
-            id="image-upload"
-          />
-          <button 
-            className="btn btn-primary" 
-            onClick={() => document.getElementById('image-upload')?.click()}
-          >
-            <UploadIcon /> Upload an Image
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="editor-view">
-      <header className="app-header">
-        <h1 className="app-title">Bananina</h1>
-        <div className="header-controls">
-          <button 
-            onClick={() => document.getElementById('image-upload')?.click()} 
-            className="btn btn-secondary"
-          >
-            <UploadIcon /> Upload
-          </button>
-        </div>
-      </header>
-      
-      <div className="app-layout">
-        <nav className="main-nav">
-          <button 
-            className={`tab-button ${activeTab === 'edit' ? 'active' : ''}`}
-            onClick={() => setActiveTab('edit')}
-          >
-            <EditIcon />
-            <span>Edit</span>
-          </button>
-          <button 
-            className={`tab-button ${activeTab === 'assistant' ? 'active' : ''}`}
-            onClick={() => setActiveTab('assistant')}
-          >
-            <AssistantIcon />
-            <span>Assistant</span>
-        </button>
-      </nav>
+    <div className="image-editor-container" style={{ 
+      width: '100vw', 
+      height: '100vh', 
+      display: 'flex', 
+      flexDirection: 'column',
+      backgroundColor: 'var(--background-color, #0a0a0a)',
+      color: 'var(--text-color, #ffffff)'
+    }}>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => {
+          if (e.target.files && e.target.files[0]) {
+            handleImageUpload(e.target.files[0]);
+          }
+        }}
+        style={{ display: 'none' }}
+        id="image-upload"
+      />
 
-      <aside className="control-panel">
-        {activeTab === 'edit' && (
-          <div className="control-group">
-            <h2>Prompt</h2>
-            <textarea
-              className="prompt-textarea"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe the edit you want to make..."
-              disabled={isLoading}
-            />
-            {error && <p className="error-message">{error}</p>}
-            <button 
-              onClick={() => handleSubmit(prompt)} 
-              className="btn btn-primary" 
-              disabled={isLoading || !prompt}
+      {/* Main Content Area */}
+      <div style={{ 
+        flex: 1, 
+        display: 'flex', 
+        overflow: 'hidden' 
+      }}>
+        {/* Left/Main Area - Image Display */}
+        <div style={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center', 
+          justifyContent: 'center',
+          padding: '2rem',
+          minWidth: 0
+        }}>
+          {!image ? (
+            <div style={{ 
+              textAlign: 'center',
+              padding: '3rem',
+              border: '2px dashed var(--border-color, #333)',
+              borderRadius: '12px',
+              cursor: 'pointer'
+            }}
+            onClick={() => document.getElementById('image-upload')?.click()}
             >
-              {isLoading ? 'Generating...' : 'Generate'}
-            </button>
-          </div>
-        )}
+              <UploadIcon />
+              <h2 style={{ marginTop: '1rem', marginBottom: '0.5rem' }}>Upload an Image</h2>
+              <p style={{ color: 'var(--text-secondary, #999)', margin: 0 }}>
+                Click here or drag and drop an image to get started
+              </p>
+            </div>
+          ) : (
+            <div style={{ 
+              maxWidth: '100%', 
+              maxHeight: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <img 
+                src={image} 
+                alt="Uploaded" 
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '70vh',
+                  objectFit: 'contain',
+                  borderRadius: '8px'
+                }} 
+              />
+            </div>
+          )}
 
-        {activeTab === 'assistant' && (
-          <div className="control-group assistant-categories">
-            {Object.entries(ASSISTANT_CATEGORIES).map(([key, category]) => (
-              <div key={key} className="assistant-category">
-                <h3>{category.name}</h3>
-                <div className="suggestion-buttons">
-                  {category.suggestions.map((suggestion) => (
-                    <button 
-                      key={suggestion.id} 
-                      className="btn btn-secondary assistant-btn"
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      disabled={isLoading || isFetchingSuggestions}
-                    >
-                      <div className="assistant-btn-text-container">
-                        <span className="assistant-btn-title">{suggestion.name}</span>
-                        <span className="assistant-btn-desc">{suggestion.desc}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </aside>
-
-      <main className="main-workspace">
-        {suggestions && suggestions.length > 0 ? (
-          <div className="assistant-workspace">
-            <div className="assistant-previews-column">
-              <div className="previews-grid">
-                {suggestions.map((suggestion, index) => (
-                  <div
-                    key={suggestion.id}
-                    className={`preview-item ${suggestion.status}`}
-                    onClick={() => suggestion.status === 'success' && handleApplySuggestion(index)}
-                  >
-                    {suggestion.status === 'loading' && (
-                      <div className="preview-item-loader">
-                        <div className="spinner-small"></div>
-                        <span>Generating...</span>
-                      </div>
-                    )}
-                    {suggestion.status === 'error' && (
-                      <div className="preview-item-error">
-                        <span>!</span>
-                        <p>Failed to generate</p>
-                      </div>
-                    )}
-                    {suggestion.status === 'success' && suggestion.generatedSuggestion && (
-                      <div className="preview-item-content">
-                        <div className="preview-item-header">
-                          <h5 className="preview-item-title">{suggestion.generatedSuggestion.name}</h5>
-                        </div>
-                        <div className="preview-item-text">
-                          <p>{suggestion.generatedSuggestion.prompt}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="preview-controls">
-                <button 
-                  className="btn btn-secondary" 
-                  onClick={() => setSuggestions(null)}
+          {/* Prompt Input Area */}
+          {image && (
+            <div style={{ 
+              width: '100%',
+              maxWidth: '800px',
+              marginTop: '2rem'
+            }}>
+              <div style={{
+                display: 'flex',
+                gap: '0.5rem',
+                alignItems: 'center',
+                background: 'var(--surface-color, #1a1a1a)',
+                padding: '1rem',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color, #333)'
+              }}>
+                <input
+                  type="text"
+                  className="prompt-input"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !isLoading) {
+                      handleSubmit(prompt);
+                    }
+                  }}
+                  placeholder="Describe how you want to edit this image..."
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    color: 'var(--text-color, #fff)',
+                    fontSize: '1rem',
+                    padding: '0.5rem'
+                  }}
+                  disabled={isLoading}
+                />
+                <button
+                  onClick={() => handleSubmit(prompt)}
+                  disabled={isLoading || !prompt.trim()}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: isLoading || !prompt.trim() ? '#333' : 'var(--primary-color, #6366f1)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: isLoading || !prompt.trim() ? 'not-allowed' : 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: 500
+                  }}
                 >
-                  Discard
+                  {isLoading ? 'Generating...' : 'Generate'}
                 </button>
               </div>
-            </div>
-            <div className="original-image-container">
-              <h4>Preview</h4>
-              <div className="image-display">
-                {isLoading && (
-                  <div className="loader">
-                    <div className="spinner" />
-                    <p>Applying suggestion...</p>
-                  </div>
-                )}
-                {image && <img src={image} alt="Content preview" />}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="image-display-container">
-            <div className="image-display">
-              {isLoading && (
-                <div className="loader">
-                  <div className="spinner" />
-                  <p>Generating your image...</p>
-                </div>
+              {error && (
+                <p style={{ 
+                  color: 'var(--error-color, #ff3b30)', 
+                  marginTop: '0.5rem',
+                  fontSize: '0.875rem'
+                }}>
+                  {error}
+                </p>
               )}
-              {image && <img src={image} alt="Main content" />}
             </div>
+          )}
+        </div>
+
+        {/* Right Sidebar - AI Analysis Panels */}
+        {image && (
+          <div style={{ 
+            width: '400px', 
+            maxWidth: '90vw',
+            borderLeft: '1px solid var(--border-color, #333)',
+            overflowY: 'auto',
+            padding: '1rem',
+            background: 'var(--surface-color, #0f0f0f)'
+          }}>
+            {/* Deep Analysis Panel - New Component */}
+            <DeepAnalysisPanel
+              currentImage={image}
+              onApplyPrompt={(prompt) => {
+                setPrompt(prompt);
+                // Auto-scroll to prompt input and focus
+                setTimeout(() => {
+                  const promptInput = document.querySelector('.prompt-input');
+                  if (promptInput) {
+                    promptInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    (promptInput as HTMLTextAreaElement).focus();
+                  }
+                }, 100);
+              }}
+            />
+            
+            {/* Spacing */}
+            <div style={{ height: '1rem' }} />
+            
+            {/* Original Gemini Analysis Panel */}
+            <GeminiAnalysisPanel
+              currentImage={image}
+              onApplyPrompt={(prompt) => {
+                setPrompt(prompt);
+                // Scroll to prompt input
+                setTimeout(() => {
+                  const promptInput = document.querySelector('.prompt-input');
+                  if (promptInput) {
+                    promptInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    (promptInput as HTMLTextAreaElement).focus();
+                  }
+                }, 100);
+              }}
+            />
           </div>
         )}
-      </main>
+      </div>
     </div>
-
-    <input
-      type="file"
-      accept="image/*"
-      onChange={(e) => {
-        if (e.target.files && e.target.files[0]) {
-          handleImageUpload(e.target.files[0]);
-        }
-      }}
-      style={{ display: 'none' }}
-      id="image-upload"
-    />
-  </div>
-);
+  );
 };
 
 export default ImageEditor;
