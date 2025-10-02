@@ -234,8 +234,7 @@ bananina/
 Required in `.env.local`:
 
 ```env
-# Google Gemini API Key (required for analysis)
-VITE_GEMINI_API_KEY=AIzaSyAA2Gpb1w5lBwRxmoSjg1zH07ASbRTNrzQ
+# Google Gemini API 
 ```
 
 **Status**: ✅ Already configured
