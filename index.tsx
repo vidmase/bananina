@@ -1136,42 +1136,88 @@ const App: React.FC = () => {
     setSuggestions(null);
 
     try {
-      // Check if this is a People & Portraits category
-      const isPeople = [
-        'Portrait Studio', 'Expression Coach', 'Fashion Stylist', 'Glamour Shots', 
-        'Beauty Retouching', 'Eyewear Styling', 'Hair Styling', 'Skin Perfection', 
-        'Age Enhancement', 'Body Contouring', 'Pose Director'
-      ].includes(featureName);
+      // Step 1: Analyze image content with Gemini to detect what's in it
+      let imageContext = '';
+      let hasFaces = false;
       
-      // Use enhanced image analysis for People & Portraits categories
-      const aiSuggestions = isPeople 
-        ? await deepseekClient.generateSuggestionsWithImageAnalysis(systemInstruction, image, featureName)
-        : await deepseekClient.generateSuggestions(systemInstruction, "the uploaded image");
+      try {
+        const analysis = await geminiClient.analyzeComposition(image);
+        
+        // Detect if faces/people are in the image
+        const lowerSummary = analysis.summary.toLowerCase();
+        hasFaces = lowerSummary.includes('person') || 
+                   lowerSummary.includes('people') || 
+                   lowerSummary.includes('portrait') || 
+                   lowerSummary.includes('face') || 
+                   lowerSummary.includes('subject');
+        
+        // Build context from analysis
+        imageContext = `The image contains: ${analysis.summary}. ${
+          hasFaces ? 'The image includes people/faces.' : 'The image is primarily a scene without people.'
+        }`;
+        
+        console.log('Image analysis for suggestions:', { hasFaces, context: imageContext });
+      } catch (err) {
+        console.warn('Could not analyze image with Gemini, using fallback:', err);
+        // Fallback: assume it might have faces to be safe
+        hasFaces = true;
+        imageContext = 'Unable to fully analyze the image, applying conservative suggestions.';
+      }
       
-      // Apply facial preservation constraint for People & Portraits categories
-      const FACIAL_PRESERVATION_CONSTRAINT = "Do not change any facial features, expression, face shape, skin tone, eyes, nose, mouth, birthmarks, scars, or hairstyle. Keep all aspects of the face exactly as in the original image.";
+      // Step 2: Generate context-aware suggestions
+      const contextAwareInstruction = `${systemInstruction}
+
+IMAGE CONTEXT: ${imageContext}
+
+IMPORTANT INSTRUCTIONS:
+${hasFaces 
+  ? '- This image contains people/faces. You MUST preserve all facial features, expressions, hairstyles, head proportions, and age appearance identical to the original. The face must remain completely unchanged.'
+  : '- This image does NOT contain faces, so focus purely on the scene, composition, lighting, and atmosphere without any face-related constraints.'
+}
+
+Generate three specific, actionable suggestions tailored to what you see in THIS specific image. Make sure each suggestion is relevant to the actual content described above.`;
+
+      // Use enhanced image analysis for better results
+      const aiSuggestions = await deepseekClient.generateSuggestionsWithImageAnalysis(
+        contextAwareInstruction, 
+        image, 
+        featureName
+      );
+      
+      // Apply facial preservation constraint ONLY if faces are detected
+      const FACIAL_PRESERVATION_CONSTRAINT = "Keep all facial features, expression, hairstyle, head proportions, and age appearance identical to the original image. The face must remain unchanged.";
       
       const suggestionsWithCategory = aiSuggestions.map((s: {name: string, prompt: string}) => ({
         ...s,
-        prompt: isPeople ? `${s.prompt}. ${FACIAL_PRESERVATION_CONSTRAINT}` : s.prompt,
+        prompt: hasFaces ? `${s.prompt}. ${FACIAL_PRESERVATION_CONSTRAINT}` : s.prompt,
         category: featureName,
       }));
       setSuggestions(suggestionsWithCategory);
 
     } catch (err) {
       console.error(`${featureName} Error:`, err);
-      // Fallback to predefined suggestions if DeepSeek fails
+      // Fallback to predefined suggestions if generation fails
       const fallbackSuggestions = getPredefinedSuggestions(featureName);
-      const isPeople = [
-        'Portrait Studio', 'Expression Coach', 'Fashion Stylist', 'Glamour Shots', 
-        'Beauty Retouching', 'Eyewear Styling', 'Hair Styling', 'Skin Perfection', 
-        'Age Enhancement', 'Body Contouring', 'Pose Director'
-      ].includes(featureName);
-      const FACIAL_PRESERVATION_CONSTRAINT = "Do not change any facial features, expression, face shape, skin tone, eyes, nose, mouth, birthmarks, scars, or hairstyle. Keep all aspects of the face exactly as in the original image.";
+      
+      // Try to detect faces for fallback as well
+      let hasFacesInFallback = false;
+      try {
+        const quickAnalysis = await geminiClient.analyzeComposition(image);
+        const lowerSummary = quickAnalysis.summary.toLowerCase();
+        hasFacesInFallback = lowerSummary.includes('person') || 
+                             lowerSummary.includes('people') || 
+                             lowerSummary.includes('portrait') || 
+                             lowerSummary.includes('face');
+      } catch {
+        // If can't analyze, be conservative and assume faces might be present
+        hasFacesInFallback = true;
+      }
+      
+      const FACIAL_PRESERVATION_CONSTRAINT = "Keep all facial features, expression, hairstyle, head proportions, and age appearance identical to the original image. The face must remain unchanged.";
       
       const suggestionsWithCategory = fallbackSuggestions.map((s: {name: string, prompt: string}) => ({
         ...s,
-        prompt: isPeople ? `${s.prompt}. ${FACIAL_PRESERVATION_CONSTRAINT}` : s.prompt,
+        prompt: hasFacesInFallback ? `${s.prompt}. ${FACIAL_PRESERVATION_CONSTRAINT}` : s.prompt,
         category: featureName,
       }));
       setSuggestions(suggestionsWithCategory);
@@ -1690,24 +1736,24 @@ const handleResetToOriginal = useCallback(() => {
     "Creative Concepts"
   );
   const handleGetTechnicalAdvice = createSuggestionHandler(
-    "You are an AI Photography Expert. Analyze the user's image and provide three technical suggestions to improve the photo. Focus on camera settings, exposure, focus, or other technical aspects. Each suggestion should be a clear, actionable prompt. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
+    "You are an AI Photography Expert. Analyze the image and provide three technical suggestions to improve the photo based on what you see. Focus on camera settings, exposure, focus, sharpness, ISO, depth of field, or other technical aspects relevant to THIS specific image. Each suggestion should be a clear, actionable prompt tailored to the actual content.",
     "Technical Advice"
   );
 
   const handleGetColorGradingIdeas = createSuggestionHandler(
-    "You are an AI Colorist. Analyze the user's image and suggest three different professional color grades. Each suggestion should be an actionable prompt describing a specific cinematic or artistic color style (e.g., 'Apply a warm, golden-hour cinematic grade' or 'Give it a high-contrast, moody blue tone'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
+    "You are an AI Colorist. Analyze the image and suggest three different professional color grades specifically suited to what you see. Each suggestion should be an actionable prompt describing a specific cinematic or artistic color style that enhances THIS particular scene (e.g., 'Apply a warm, golden-hour cinematic grade' or 'Give it a high-contrast, moody blue tone').",
     "Color Grading"
   );
   const handleGetColorAdvice = createSuggestionHandler(
-    "You are an AI Colorist. Analyze the user's image and suggest three different professional color grades. Each suggestion should be an actionable prompt describing a specific cinematic or artistic color style (e.g., 'Apply a warm, golden-hour cinematic grade' or 'Give it a high-contrast, moody blue tone'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
+    "You are an AI Colorist. Analyze the image and suggest three different professional color grades specifically suited to what you see. Each suggestion should be an actionable prompt describing a specific cinematic or artistic color style that enhances THIS particular scene.",
     "Color Grading"
   );
   const handleGetCompositionIdeas = createSuggestionHandler(
-    "You are an AI Composition Coach, an expert in photographic principles like the rule of thirds, leading lines, framing, and balance. Analyze the user's image and provide three distinct, actionable suggestions to improve its composition. Each suggestion should be a clear instruction the user can follow, like a specific crop or a generative fill idea. Frame your suggestions as if you are a helpful coach. IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
+    "You are an AI Composition Coach, an expert in photographic principles like the rule of thirds, leading lines, framing, and balance. Analyze the image and provide three distinct, actionable suggestions to improve its composition based on what you actually see. Each suggestion should be a clear instruction tailored to THIS specific scene - consider crop suggestions, reframing, or generative fill ideas that enhance the actual content.",
     "Composition"
   );
   const handleGetLightingIdeas = createSuggestionHandler(
-    "You are an AI Lighting Director. Analyze the user's image and suggest three different professional lighting setups. Each suggestion should be a clear, actionable prompt describing a specific lighting style (e.g., 'Apply dramatic, high-contrast Rembrandt lighting from the top-left' or 'Relight the scene with a soft, warm, golden-hour glow'). IMPORTANT: Preserve all faces exactly as they are - do not modify, change, edit, or alter any facial features, expressions, or identities.",
+    "You are an AI Lighting Director. Analyze the image and suggest three different professional lighting improvements specifically for THIS scene. Each suggestion should be a clear, actionable prompt describing a specific lighting style that would enhance what you see (e.g., 'Apply dramatic, high-contrast Rembrandt lighting' or 'Add a soft, warm, golden-hour glow').",
     "Lighting"
   );
   const handleGetBackgroundIdeas = createSuggestionHandler(
