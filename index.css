@@ -4,6 +4,9 @@
 /* Import Editor Component Styles */
 @import './components/editor/styles.css';
 
+/* Import Mobile-First Responsive Design */
+@import './mobile-responsive.css';
+
 :root {
   /* Base Colors */
   --background-color: #0a0a0a;

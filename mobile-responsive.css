@@ -1,0 +1,762 @@
+/**
+ * Mobile-First Responsive Design
+ * Comprehensive mobile optimization for all screen sizes
+ */
+
+/* ========================================
+   MOBILE BREAKPOINTS
+   ======================================== */
+
+/* Small Mobile: 320px - 480px */
+@media (max-width: 480px) {
+  :root {
+    --border-radius: 8px;
+    --border-radius-sm: 6px;
+    --border-radius-lg: 12px;
+  }
+
+  /* Base Typography */
+  body {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.25rem; }
+  h3 { font-size: 1.1rem; }
+  h4 { font-size: 1rem; }
+  h5, h6 { font-size: 0.9rem; }
+
+  /* App Header - Make it compact */
+  .app-header {
+    padding: 0.75rem 1rem;
+    flex-direction: column;
+    gap: 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+
+  .app-title {
+    font-size: 1.25rem;
+    text-align: center;
+  }
+
+  .header-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* Layout - Stack vertically on mobile */
+  .app-layout {
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 120px);
+  }
+
+  /* Main Navigation - Convert to bottom tab bar */
+  .main-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 0.5rem 0.25rem;
+    background: rgba(10, 10, 10, 0.95);
+    backdrop-filter: blur(20px);
+    border-right: none;
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    gap: 0.25rem;
+  }
+
+  .tab-button {
+    flex: 1;
+    padding: 0.5rem 0.25rem;
+    min-height: 56px; /* Touch-friendly */
+    font-size: 0.7rem;
+    gap: 0.25rem;
+  }
+
+  .tab-button svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .tab-button span {
+    font-size: 0.65rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  /* Control Panel - Full width overlay */
+  .control-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 56px; /* Leave space for bottom nav */
+    width: 100%;
+    max-width: 100%;
+    z-index: 90;
+    border-right: none;
+    border-radius: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .tab-content {
+    padding-bottom: 80px; /* Extra space for bottom nav */
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Smart Image Container - Adapts to available space */
+  .main-view,
+  .canvas-view,
+  .editor-canvas,
+  .image-canvas-wrapper,
+  .canvas-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    min-height: 0; /* Important for flexbox */
+    padding: 0.5rem;
+  }
+
+  /* Ensure ALL images are fully visible on mobile */
+  .main-view img,
+  .canvas-view img,
+  .editor-canvas img,
+  .image-canvas-wrapper img,
+  .canvas-area img,
+  img[alt="Uploaded"],
+  img[alt="Edited"],
+  img[src*="data:image"] {
+    max-width: calc(100vw - 2rem) !important;
+    max-height: calc(100vh - 200px - 56px) !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+    display: block;
+    margin: auto;
+  }
+
+  /* When image is being edited - make it tap to zoom */
+  .image-display.has-image {
+    cursor: pointer;
+    position: relative;
+  }
+
+  .image-display.has-image::after {
+    content: '👆 Tap image to view fullscreen';
+    position: absolute;
+    bottom: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.7rem;
+    pointer-events: none;
+    opacity: 0;
+    animation: fadeInOut 3s ease-in-out;
+  }
+
+  @keyframes fadeInOut {
+    0%, 100% { opacity: 0; }
+    10%, 90% { opacity: 1; }
+  }
+
+  .control-group {
+    padding: 1rem;
+    flex-shrink: 0; /* Don't shrink prompt area */
+  }
+
+  .control-group h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .control-group h3 {
+    font-size: 1rem;
+    margin: 0.75rem 0 0.5rem;
+  }
+
+  /* Give image maximum space by minimizing other elements */
+  .control-group:has(.image-display) {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Prompt stays at bottom, image gets the space */
+  .control-group > .prompt-container {
+    margin-top: auto;
+    flex-shrink: 0;
+  }
+
+  /* Buttons - Touch-friendly sizes */
+  .btn {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    border-radius: var(--border-radius-sm);
+  }
+
+  .btn-sm {
+    min-height: 38px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .btn-lg {
+    min-height: 52px;
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  /* Prompt Input - Larger touch targets */
+  .prompt-textarea {
+    min-height: 100px;
+    font-size: 0.9rem;
+    padding: 0.75rem;
+  }
+
+  .prompt-container {
+    gap: 0.75rem;
+  }
+
+  .prompt-buttons-container {
+    gap: 0.5rem;
+  }
+
+  .btn-prompt-action {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1.2rem;
+  }
+
+  /* Image Display - Smart viewport fitting */
+  .image-display {
+    position: relative;
+    width: 100%;
+    padding: 0.5rem;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Calculate available height: viewport - header - bottom nav - prompt area */
+    max-height: calc(100vh - 120px - 56px - 200px);
+    overflow: hidden;
+  }
+
+  .image-display img {
+    max-width: 100%;
+    max-height: calc(100vh - 120px - 56px - 250px);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: var(--border-radius);
+    display: block;
+    margin: 0 auto;
+  }
+
+  /* Upload Zone - Mobile optimized */
+  .upload-zone {
+    min-height: 200px;
+    padding: 2rem 1rem;
+  }
+
+  .upload-zone h2 {
+    font-size: 1.2rem;
+  }
+
+  .upload-zone p {
+    font-size: 0.85rem;
+  }
+
+  /* Suggestions Panel - Full screen overlay on mobile */
+  .suggestions-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 56px;
+    width: 100%;
+    max-width: 100%;
+    z-index: 95;
+    border-radius: 0;
+  }
+
+  .suggestions-panel-header {
+    padding: 1rem;
+    position: sticky;
+    top: 0;
+    background: var(--surface-color);
+    z-index: 10;
+    backdrop-filter: blur(10px);
+  }
+
+  .suggestions-panel-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .btn-close-panel {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1.8rem;
+  }
+
+  .suggestions-panel-body {
+    padding: 1rem;
+  }
+
+  .suggestion-card {
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .suggestion-card h3 {
+    font-size: 1rem;
+  }
+
+  .suggestion-card p {
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  .suggestion-card-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .suggestion-card-actions .btn {
+    width: 100%;
+  }
+
+  /* Assistant Categories - Single column on mobile */
+  .assistant-categories {
+    gap: 1rem;
+  }
+
+  .assistant-category {
+    padding: 1rem;
+  }
+
+  .assistant-category h3 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .suggestion-buttons {
+    grid-template-columns: 1fr; /* Single column */
+    gap: 0.75rem;
+  }
+
+  .assistant-btn {
+    padding: 1rem;
+    min-height: 70px;
+  }
+
+  .assistant-btn-icon-container {
+    min-width: 36px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .assistant-btn-icon-container svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .assistant-btn-title {
+    font-size: 0.9rem;
+  }
+
+  .assistant-btn-desc {
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  /* Effects Grid - 2 columns on mobile */
+  .quick-effects-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .quick-effects-grid .btn {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  /* Analysis Cards */
+  .analysis-summary-card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .analysis-summary-text {
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  .confidence-pill {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .tag-chip {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  /* Image Input Group - Stack vertically */
+  .image-input-group {
+    margin-bottom: 1rem;
+  }
+
+  .image-input-preview {
+    max-height: 200px;
+  }
+
+  /* History Panel */
+  .history-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .history-item {
+    min-height: 100px;
+  }
+
+  /* Modal Overlays - Full screen on mobile */
+  .modal {
+    padding: 0;
+    border-radius: 0;
+    max-width: 100%;
+    max-height: 100%;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .modal-content {
+    padding: 1.5rem 1rem;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    padding: 1rem;
+    position: sticky;
+    top: 0;
+    background: var(--surface-color);
+    z-index: 10;
+  }
+
+  .modal-header h2 {
+    font-size: 1.2rem;
+  }
+
+  .modal-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Pin Modal */
+  .pin-input-group {
+    gap: 0.75rem;
+  }
+
+  .pin-input {
+    width: 48px;
+    height: 56px;
+    font-size: 1.5rem;
+  }
+
+  /* Before/After Slider */
+  .before-after-slider {
+    margin: 0.5rem;
+  }
+
+  .slider-handle {
+    width: 48px;
+    height: 48px;
+  }
+
+  .slider-line {
+    width: 4px;
+  }
+
+  /* Loading States */
+  .spinner-small {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Toast Notifications */
+  .toast {
+    width: calc(100% - 2rem);
+    max-width: 100%;
+    margin: 1rem;
+    padding: 1rem;
+    font-size: 0.9rem;
+  }
+
+  /* Favorites */
+  .btn-favorite {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .star-icon {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* ========================================
+   MEDIUM MOBILE: 481px - 767px
+   ======================================== */
+
+@media (min-width: 481px) and (max-width: 767px) {
+  .app-header {
+    flex-direction: row;
+    padding: 1rem 1.5rem;
+  }
+
+  .app-title {
+    font-size: 1.5rem;
+    text-align: left;
+  }
+
+  .control-panel {
+    width: 100%;
+  }
+
+  .suggestion-buttons {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .quick-effects-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .history-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ========================================
+   TABLET: 768px - 1024px
+   ======================================== */
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .app-layout {
+    flex-direction: row;
+  }
+
+  .main-nav {
+    position: relative;
+    width: 80px;
+    flex-direction: column;
+    border-right: 1px solid var(--border-color);
+    border-top: none;
+  }
+
+  .tab-button {
+    padding: 1rem 0.5rem;
+  }
+
+  .control-panel {
+    position: relative;
+    width: 300px;
+    bottom: auto;
+  }
+
+  .suggestions-panel {
+    position: relative;
+    width: 280px;
+    bottom: auto;
+  }
+
+  .suggestion-buttons {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .quick-effects-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ========================================
+   LANDSCAPE MOBILE: < 700px height
+   ======================================== */
+
+@media (max-height: 700px) and (orientation: landscape) {
+  .app-header {
+    padding: 0.5rem 1rem;
+  }
+
+  .app-title {
+    font-size: 1.2rem;
+  }
+
+  .main-nav {
+    padding: 0.25rem;
+  }
+
+  .tab-button {
+    padding: 0.5rem 0.25rem;
+    min-height: 48px;
+    font-size: 0.65rem;
+  }
+
+  .tab-button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .control-group {
+    padding: 0.75rem;
+  }
+
+  .prompt-textarea {
+    min-height: 80px;
+  }
+}
+
+/* ========================================
+   TOUCH-FRIENDLY IMPROVEMENTS
+   ======================================== */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Increase all interactive element sizes for touch */
+  button, 
+  .btn, 
+  input[type="button"],
+  input[type="submit"],
+  a.btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .tab-button:hover {
+    transform: none;
+  }
+
+  /* Add active states for better feedback */
+  .btn:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+
+  .tab-button:active {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  /* Larger tap targets for close buttons */
+  .btn-close,
+  .btn-close-panel,
+  .modal-close {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0.5rem;
+  }
+
+  /* Improve scrolling */
+  .suggestions-panel-body,
+  .control-panel,
+  .tab-content {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+}
+
+/* ========================================
+   ACCESSIBILITY IMPROVEMENTS
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  :root {
+    --border-color: #ffffff;
+    --text-muted-color: #e0e0e0;
+  }
+
+  .btn {
+    border: 2px solid currentColor;
+  }
+}
+
+/* ========================================
+   SAFE AREA INSETS (for notched devices)
+   ======================================== */
+
+@supports (padding: max(0px)) {
+  .app-header {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+
+  .main-nav {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .control-panel,
+  .suggestions-panel {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
+@media print {
+  .app-header,
+  .main-nav,
+  .control-panel,
+  .suggestions-panel,
+  button {
+    display: none !important;
+  }
+
+  .image-display {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  body {
+    background: white;
+  }
+}
+
