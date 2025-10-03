@@ -4,8 +4,8 @@
 /* Import Editor Component Styles */
 @import './components/editor/styles.css';
 
-/* Import Mobile-First Responsive Design */
-@import './mobile-responsive.css';
+/* Import Mobile Image Fixed Layout */
+@import './mobile-image-fixed.css';
 
 :root {
   /* Base Colors */
