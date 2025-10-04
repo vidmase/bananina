@@ -393,6 +393,37 @@ body {
   position: relative;
 }
 
+/* Sora 2 Button Special Styling */
+.tab-button.sora2-button {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tab-button.sora2-button::before {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%, 
+    rgba(255, 255, 255, 0.05) 100%);
+  opacity: 1;
+}
+
+.tab-button.sora2-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.5);
+  background: linear-gradient(135deg, #7477f2 0%, #9c6df7 100%);
+}
+
+.tab-button.sora2-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+}
+
+.tab-button.sora2-button svg {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
 .tab-button:hover {
   background: rgba(255, 255, 255, 0.1);
   color: var(--text-color);

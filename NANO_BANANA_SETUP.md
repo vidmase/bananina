@@ -13,7 +13,7 @@ The integration uses your existing KIE API key from the `.env.local` file. No ad
 Your existing configuration already includes the necessary API key:
 
 ```
-VITE_KIE_API_KEY=e9e1c6b8be50f3141976c20f4477f2e2
+VITE_KIE_API_KEY=your_api_key_here
 ```
 
 ### 3. Features

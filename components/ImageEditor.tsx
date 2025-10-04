@@ -5,6 +5,7 @@ import { nanoBananaClient } from '../nanoBananaClient';
 import MaskEditor from '../MaskEditor';
 import { GeminiAnalysisPanel } from './editor';
 import { DeepAnalysisPanel } from './editor/DeepAnalysisPanel';
+import { Sora2Panel } from './Sora2Panel';
 
 
 // --- ICONS ---
@@ -26,6 +27,7 @@ const TimerIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" heigh
 const StackIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>;
 const TargetIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>;
 const CompassIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>;
+const VideoIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>;
 
 const StarIcon = ({ filled }: { filled: boolean }) => (
   <svg className={`star-icon ${filled ? 'filled' : ''}`} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -133,6 +135,7 @@ const ImageEditor: React.FC = () => {
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const [favorites, setFavorites] = useState<any[]>([]);
+  const [aspectRatio, setAspectRatio] = useState<string>('auto');
   const recognitionRef = useRef<any | null>(null);
 
   const [colorBalance, setColorBalance] = useState({
@@ -144,6 +147,7 @@ const ImageEditor: React.FC = () => {
   const [promptVariations, setPromptVariations] = useState<{ name: string; prompt: string }[] | null>(null);
   const [isGeneratingVariations, setIsGeneratingVariations] = useState<boolean>(false);
   const [selectedSuggestionForVariations, setSelectedSuggestionForVariations] = useState<any | null>(null);
+  const [showSora2Panel, setShowSora2Panel] = useState<boolean>(false);
 
   // Constraint to preserve facial features for People & Portraits category
   const FACIAL_PRESERVATION_CONSTRAINT =
@@ -387,6 +391,24 @@ const ImageEditor: React.FC = () => {
     document.body.removeChild(link);
   }, [image]);
 
+  const handleUpscale = useCallback(async (scale: number = 2, faceEnhance: boolean = false) => {
+    if (!image) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const upscaledImage = await nanoBananaClient.upscaleImage(image, { scale, face_enhance: faceEnhance });
+      setImage(upscaledImage);
+      updateHistory(upscaledImage);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upscale image');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [image, updateHistory]);
+
   const generateImage = useCallback(async (currentPrompt: string, baseImage: string) => {
     console.log('Using KIE client for image editing');
     let enhancedPrompt = currentPrompt;
@@ -397,8 +419,8 @@ const ImageEditor: React.FC = () => {
     } else {
       enhancedPrompt = `Apply the following changes to the uploaded image: ${currentPrompt}. Keep the original image structure and only modify as requested.`;
     }
-    return await kieClient.generateImage(enhancedPrompt, baseImage, referenceImage);
-  }, [maskImage, styleDirectorImage, referenceImage]);
+    return await kieClient.generateImage(enhancedPrompt, baseImage, referenceImage, { image_size: aspectRatio });
+  }, [maskImage, styleDirectorImage, referenceImage, aspectRatio]);
 
   const handleSubmit = useCallback(async (currentPrompt: string) => {
     if (!image || !currentPrompt) return;
@@ -548,12 +570,97 @@ const ImageEditor: React.FC = () => {
         id="image-upload"
       />
 
+      {/* Sora 2 Panel Modal */}
+      {showSora2Panel && (
+        <Sora2Panel onClose={() => setShowSora2Panel(false)} />
+      )}
+
       {/* Main Content Area */}
       <div style={{ 
         flex: 1, 
         display: 'flex', 
         overflow: 'hidden' 
       }}>
+        {/* Left Menu */}
+        <div style={{
+          width: '80px',
+          backgroundColor: 'var(--surface-color, #0f0f0f)',
+          borderRight: '1px solid var(--border-color, #333)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '1rem 0',
+          gap: '0.5rem',
+        }}>
+          {/* Logo/Home */}
+          <button
+            onClick={() => document.getElementById('image-upload')?.click()}
+            style={{
+              width: '60px',
+              height: '60px',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: '12px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--text-color, #fff)',
+              transition: 'all 0.2s',
+              marginBottom: '1rem',
+            }}
+            title="Upload Image"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--border-color, #333)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            <EditIcon />
+            <span style={{ fontSize: '0.625rem', marginTop: '0.25rem' }}>Editor</span>
+          </button>
+
+          <div style={{
+            width: '40px',
+            height: '1px',
+            backgroundColor: 'var(--border-color, #333)',
+            margin: '0.5rem 0',
+          }} />
+
+          {/* Sora 2 Button */}
+          <button
+            onClick={() => setShowSora2Panel(true)}
+            style={{
+              width: '60px',
+              height: '60px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              border: 'none',
+              borderRadius: '12px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#fff',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
+            }}
+            title="Sora 2 Text-to-Video"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.5)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(99, 102, 241, 0.3)';
+            }}
+          >
+            <VideoIcon />
+            <span style={{ fontSize: '0.625rem', marginTop: '0.25rem', fontWeight: 600 }}>Sora 2</span>
+          </button>
+        </div>
         {/* Left/Main Area - Image Display */}
         <div style={{ 
           flex: 1, 
@@ -608,6 +715,129 @@ const ImageEditor: React.FC = () => {
               maxWidth: '800px',
               marginTop: '2rem'
             }}>
+              {/* Aspect Ratio Selector */}
+              <div style={{
+                marginBottom: '0.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <label style={{
+                  fontSize: '0.875rem',
+                  color: 'var(--text-secondary, #999)',
+                  fontWeight: 500
+                }}>
+                  Aspect Ratio:
+                </label>
+                <select
+                  value={aspectRatio}
+                  onChange={(e) => setAspectRatio(e.target.value)}
+                  style={{
+                    background: 'var(--surface-color, #1a1a1a)',
+                    color: 'var(--text-color, #fff)',
+                    border: '1px solid var(--border-color, #333)',
+                    borderRadius: '6px',
+                    padding: '0.5rem 1rem',
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                  disabled={isLoading}
+                >
+                  <option value="auto">Auto</option>
+                  <option value="1:1">1:1 (Square)</option>
+                  <option value="16:9">16:9 (Landscape)</option>
+                  <option value="9:16">9:16 (Portrait)</option>
+                  <option value="4:3">4:3</option>
+                  <option value="3:4">3:4</option>
+                  <option value="3:2">3:2</option>
+                  <option value="2:3">2:3</option>
+                  <option value="5:4">5:4</option>
+                  <option value="4:5">4:5</option>
+                  <option value="21:9">21:9 (Ultra-wide)</option>
+                </select>
+              </div>
+              {/* Upscale Controls */}
+              <div style={{
+                marginBottom: '0.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                flexWrap: 'wrap'
+              }}>
+                <label style={{
+                  fontSize: '0.875rem',
+                  color: 'var(--text-secondary, #999)',
+                  fontWeight: 500
+                }}>
+                  Upscale:
+                </label>
+                <button
+                  onClick={() => handleUpscale(2, false)}
+                  disabled={isLoading}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: isLoading ? '#333' : 'var(--primary-color, #6366f1)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: 500
+                  }}
+                >
+                  2x
+                </button>
+                <button
+                  onClick={() => handleUpscale(3, false)}
+                  disabled={isLoading}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: isLoading ? '#333' : 'var(--primary-color, #6366f1)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: 500
+                  }}
+                >
+                  3x
+                </button>
+                <button
+                  onClick={() => handleUpscale(4, false)}
+                  disabled={isLoading}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: isLoading ? '#333' : 'var(--primary-color, #6366f1)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: 500
+                  }}
+                >
+                  4x
+                </button>
+                <button
+                  onClick={() => handleUpscale(2, true)}
+                  disabled={isLoading}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: isLoading ? '#333' : 'var(--accent-color, #10b981)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: 500
+                  }}
+                  title="2x with face enhancement"
+                >
+                  2x + Face
+                </button>
+              </div>
               <div style={{
                 display: 'flex',
                 gap: '0.5rem',

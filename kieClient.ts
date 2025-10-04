@@ -4,7 +4,7 @@
  */
 
 const KIE_API_BASE = 'https://api.kie.ai';
-const KIE_API_KEY = 'e9e1c6b8be50f3141976c20f4477f2e2';
+const KIE_API_KEY = import.meta.env.VITE_KIE_API_KEY;
 
 // Debug logger utility
 class DebugLogger {
@@ -309,7 +309,7 @@ class KieClient {
     throw new Error('Task timed out');
   }
 
-  async generateImage(prompt: string, baseImage?: string, referenceImage?: string): Promise<string> {
+  async generateImage(prompt: string, baseImage?: string, referenceImage?: string, options?: { image_size?: string }): Promise<string> {
     // Always use the editing model when baseImage is provided for image editing
     const model = 'google/nano-banana-edit';
     
@@ -318,7 +318,7 @@ class KieClient {
       input: {
         prompt: baseImage ? `Edit this image: ${prompt}. Keep the original composition and only apply the requested changes.` : prompt,
         output_format: 'png',
-        image_size: 'auto',
+        image_size: options?.image_size || 'auto',
       },
     };
 

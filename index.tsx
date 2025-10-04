@@ -61,6 +61,7 @@ import { initializeHaptics, haptics } from './utils/haptics';
 import { geminiClient } from './geminiClient';
 import type { CompositionAnalysis } from './geminiClient';
 import MaskEditor from './MaskEditor';
+import { Sora2Panel } from './components/Sora2Panel';
 
 // --- ICONS ---
 const EditIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>;
@@ -98,6 +99,7 @@ const CameraIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" heig
 const ZapIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
 const EyeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>;
 const FilmIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="2.18" ry="2.18"/><line x1="7" x2="7" y1="2" y2="22"/><line x1="17" x2="17" y1="2" y2="22"/><line x1="2" x2="22" y1="12" y2="12"/><line x1="2" x2="22" y1="7" y2="7"/><line x1="2" x2="22" y1="17" y2="17"/></svg>;
+const VideoIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>;
 const RocketIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>;
 const HeartIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>;
 const BrainIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>;
@@ -590,6 +592,7 @@ const App: React.FC = () => {
   const [view, setView] = useState<'upload' | 'editor'>('upload');
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState<boolean>(false);
+  const [showSora2Panel, setShowSora2Panel] = useState<boolean>(false);
   // Composition Coach state
   const [compositionAnalysis, setCompositionAnalysis] = useState<CompositionAnalysis | null>(null);
   const [isAnalyzingComposition, setIsAnalyzingComposition] = useState<boolean>(false);
@@ -614,6 +617,9 @@ const App: React.FC = () => {
   const [panPosition, setPanPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  
+  // Aspect Ratio state
+  const [aspectRatio, setAspectRatio] = useState<string>('auto');
 
   // PIN validation
   const validatePin = (inputPin: string): boolean => {
@@ -974,6 +980,24 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   }, [image]);
 
+  const handleUpscale = useCallback(async (scale: number = 2, faceEnhance: boolean = false) => {
+    if (!image) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const upscaledImage = await nanoBananaClient.upscaleImage(image, { scale, face_enhance: faceEnhance });
+      setImage(upscaledImage);
+      updateHistory(upscaledImage);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upscale image');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [image, updateHistory]);
+
   const generateEditedImage = useCallback(async (baseImage: string, currentPrompt: string) => {
       // Validate inputs
       if (!baseImage) throw new Error('No base image provided');
@@ -996,8 +1020,8 @@ const App: React.FC = () => {
       
       // Use KIE client directly for more reliable image editing
       const refForApi = referenceImage || imageReference || null;
-      return await kieClient.generateImage(enhancedPrompt, baseImage, refForApi || undefined);
-  }, [maskImage, styleDirectorImage, referenceImage, imageReference, imageReferencePrompt]);
+      return await kieClient.generateImage(enhancedPrompt, baseImage, refForApi, { image_size: aspectRatio });
+  }, [maskImage, styleDirectorImage, referenceImage, imageReference, imageReferencePrompt, aspectRatio]);
 
   // ---- Main AI Submit Logic ----
   const handleSubmit = useCallback(async (currentPrompt: string) => {
@@ -2321,6 +2345,11 @@ const handleResetToOriginal = useCallback(() => {
 
   return (
     <div className="editor-view">
+      {/* Sora 2 Panel Modal */}
+      {showSora2Panel && (
+        <Sora2Panel onClose={() => setShowSora2Panel(false)} />
+      )}
+      
       {/* PIN Entry Modal */}
       {showPinModal && (
         <div className="pin-modal-overlay" onClick={(e) => console.log('Modal overlay clicked', e)}>
@@ -2454,11 +2483,94 @@ const handleResetToOriginal = useCallback(() => {
             >
               <StarIcon filled={activeTab === 'favorites'} /><span>Favorites</span>
             </button>
+            <button 
+              onClick={() => { haptics.success(); setShowSora2Panel(true); }} 
+              className="tab-button haptic-select sora2-button"
+              style={{
+                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                marginTop: 'auto',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
+              <VideoIcon /><span>Sora 2</span>
+            </button>
         </nav>
         <aside className="control-panel">
           <div className="tab-content">
             {activeTab === 'edit' && (
               <div className="control-group">
+                <h2>Aspect Ratio</h2>
+                <select
+                  value={aspectRatio}
+                  onChange={(e) => setAspectRatio(e.target.value)}
+                  disabled={isLoading}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    background: 'var(--surface-color, #1a1a1a)',
+                    color: 'var(--text-color, #fff)',
+                    border: '1px solid var(--border-color, #333)',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    marginBottom: '1rem'
+                  }}
+                >
+                  <option value="auto">Auto</option>
+                  <option value="1:1">1:1 (Square)</option>
+                  <option value="16:9">16:9 (Landscape)</option>
+                  <option value="9:16">9:16 (Portrait)</option>
+                  <option value="4:3">4:3</option>
+                  <option value="3:4">3:4</option>
+                  <option value="3:2">3:2</option>
+                  <option value="2:3">2:3</option>
+                  <option value="5:4">5:4</option>
+                  <option value="4:5">4:5</option>
+                  <option value="21:9">21:9 (Ultra-wide)</option>
+                </select>
+                <h2>Upscale</h2>
+                <div style={{
+                  display: 'flex',
+                  gap: '0.5rem',
+                  marginBottom: '1rem',
+                  flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={() => handleUpscale(2, false)}
+                    disabled={isLoading}
+                    className="btn btn-secondary"
+                    style={{ flex: '1 1 auto', minWidth: '60px' }}
+                  >
+                    2x
+                  </button>
+                  <button
+                    onClick={() => handleUpscale(3, false)}
+                    disabled={isLoading}
+                    className="btn btn-secondary"
+                    style={{ flex: '1 1 auto', minWidth: '60px' }}
+                  >
+                    3x
+                  </button>
+                  <button
+                    onClick={() => handleUpscale(4, false)}
+                    disabled={isLoading}
+                    className="btn btn-secondary"
+                    style={{ flex: '1 1 auto', minWidth: '60px' }}
+                  >
+                    4x
+                  </button>
+                  <button
+                    onClick={() => handleUpscale(2, true)}
+                    disabled={isLoading}
+                    className="btn btn-primary"
+                    style={{ flex: '1 1 auto', minWidth: '80px' }}
+                    title="2x with face enhancement"
+                  >
+                    2x + Face
+                  </button>
+                </div>
                 <h2>Prompt</h2>
                 <div className="prompt-container">
                   <textarea
